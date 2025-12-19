@@ -1,7 +1,7 @@
 ```markdown
 # MeowTV 🎬🐱
 
-**[Next.js + TypeScript Streaming Platform for Anime & Cartoons]**
+**[Next.js + TypeScript Streaming Platform for Movies,TV Shows,Anime & Cartoons]**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-4.9+-blue.svg)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16.0.10-black.svg)](https://nextjs.org/)
