@@ -1,27 +1,12 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --background: #0f0f0f;
+  --surface: #1e1e1e;
+  --primary: #e50914;
+  /* Netflix-like red */
+  --text: #ffffff;
+  --text-secondary: #aaaaaa;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 * {
@@ -30,13 +15,210 @@ body {
   margin: 0;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+body {
+  background-color: var(--background);
+  color: var(--text);
+  font-family: var(--font-main);
+  overflow-x: hidden;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Layout Utilities */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px;
+}
+
+/* Card Component Styles */
+.card {
+  position: relative;
+  transition: transform 0.2s;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+  aspect-ratio: 2/3;
+}
+
+.card:hover {
+  transform: scale(1.05);
+  z-index: 10;
+}
+
+.card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+}
+
+.card-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Home Page Sections */
+.section {
+  margin-bottom: 40px;
+}
+
+.section-header {
+  margin-bottom: 15px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.horizontal-scroll {
+  display: flex;
+  overflow-x: auto;
+  gap: 15px;
+  padding-bottom: 10px;
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.horizontal-scroll::-webkit-scrollbar {
+  display: none;
+  /* Chrome/Safari */
+}
+
+.horizontal-scroll .card {
+  min-width: 160px;
+  width: 160px;
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 40px;
+  background: rgba(0, 0, 0, 0.5);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+
+.nav-link {
+  color: var(--text-secondary);
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: var(--text);
+}
+
+.search-bar {
+  background: var(--surface);
+  border: 1px solid #333;
+  padding: 8px 15px;
+  border-radius: 20px;
+  color: white;
+  outline: none;
+}
+
+/* Video Player Page */
+.player-container {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: black;
+  margin-bottom: 20px;
+}
+
+.details-container {
+  padding: 20px;
+}
+
+.details-title {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.details-meta {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+
+.episode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.episode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.episode-item {
+  display: block;
+  padding: 10px;
+  background: #333;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.episode-item:hover {
+  background: #444;
+}
+
+.episode-item.active {
+  background: var(--primary);
+  color: white;
+}
+
+.episode-number {
+  font-size: 0.9em;
+  font-weight: bold;
+}
+
+.episode-title {
+  font-size: 0.8em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
