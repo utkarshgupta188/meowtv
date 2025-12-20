@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
     const referer = request.nextUrl.searchParams.get('referer') || 'https://net51.cc/';
     const cookie = request.nextUrl.searchParams.get('cookie') || 'hd=on';
     const decryptParam = request.nextUrl.searchParams.get('decrypt'); // 'kartoons'
+    const directParam = request.nextUrl.searchParams.get('direct');
     const rangeHeader = request.headers.get('range');
 
     console.log('[HLS Proxy] === NEW REQUEST ===');
@@ -148,6 +149,14 @@ export async function GET(request: NextRequest) {
         if (playlistText !== null) {
             let text = playlistText;
 
+            // For Kartoons: proxy playlists so we can decrypt enc2 lines server-side,
+            // but allow decrypted segment/key/media URLs to be fetched directly when possible.
+            // This matches the Android approach (decrypt playlist contents, then player fetches segments directly).
+            const directSegments =
+                decryptParam === 'kartoons' &&
+                directParam !== '0' &&
+                directParam !== 'false';
+
             const proxySuffix = `&referer=${encodeURIComponent(referer)}&cookie=${encodeURIComponent(cookie)}${decryptParam ? `&decrypt=${decryptParam}` : ''}`;
 
             const resolveUrl = (maybeRelative: string) => {
@@ -185,6 +194,24 @@ export async function GET(request: NextRequest) {
                 return `/api/hls?url=${encodeURIComponent(absoluteUrl)}${proxySuffix}`;
             };
 
+            const looksLikePlaylistUrl = (u: string) => {
+                const lower = u.toLowerCase();
+                return lower.includes('.m3u8') || lower.includes('playlist');
+            };
+
+            const rewriteUrlToken = (token: string) => {
+                let absoluteUrl = decryptIfNeeded(token);
+                absoluteUrl = resolveUrl(absoluteUrl);
+
+                // Always proxy playlists so we can keep decrypting nested enc2 playlists.
+                if (looksLikePlaylistUrl(absoluteUrl)) return wrapProxy(absoluteUrl);
+
+                // For Kartoons, emitting direct segment URLs is much faster if CORS allows it.
+                if (directSegments) return absoluteUrl;
+
+                return wrapProxy(absoluteUrl);
+            };
+
             const rewriteUriAttributes = (line: string) => {
                 // Decrypt any embedded enc2 tokens first so even odd tag formats won't leak enc2: to the client.
                 let out = decryptIfNeeded(line);
@@ -193,20 +220,18 @@ export async function GET(request: NextRequest) {
                 // Some tags may use KEYFORMATURI= as well.
                 out = out.replace(/(URI|KEYFORMATURI)="([^"]+)"/gi, (_match, keyName: string, uri: string) => {
                     // If already proxied, leave it.
-                    if (uri.startsWith('/api/hls?')) return `${keyName}="${uri}"`;
-                    let absoluteUrl = decryptIfNeeded(uri);
-                    absoluteUrl = resolveUrl(absoluteUrl);
-                    return `${keyName}="${wrapProxy(absoluteUrl)}"`;
+                    if (uri.startsWith('/api/hls?') || uri.startsWith('/api/proxy?')) return `${keyName}="${uri}"`;
+                    const rewritten = rewriteUrlToken(uri);
+                    return `${keyName}="${rewritten}"`;
                 });
 
                 // Unquoted form: URI=foo.m3u8 or URI=https://... or URI=enc2:...
                 // Only rewrite if it looks like a URL/path token (stop at comma/space)
                 out = out.replace(/(URI|KEYFORMATURI)=([^,\s]+)/gi, (_match, keyName: string, uri: string) => {
                     // If it was already handled by quoted pass or already proxied, skip.
-                    if (uri.startsWith('"') || uri.startsWith('/api/hls?')) return `${keyName}=${uri}`;
-                    let absoluteUrl = decryptIfNeeded(uri);
-                    absoluteUrl = resolveUrl(absoluteUrl);
-                    return `${keyName}=${wrapProxy(absoluteUrl)}`;
+                    if (uri.startsWith('"') || uri.startsWith('/api/hls?') || uri.startsWith('/api/proxy?')) return `${keyName}=${uri}`;
+                    const rewritten = rewriteUrlToken(uri);
+                    return `${keyName}=${rewritten}`;
                 });
 
                 return out;
@@ -226,9 +251,7 @@ export async function GET(request: NextRequest) {
                 // Idempotency: if playlist already contains proxied lines, keep them.
                 if (trimmed.startsWith('/api/hls?') || trimmed.startsWith('/api/proxy?')) return trimmed;
 
-                let absoluteUrl = decryptIfNeeded(trimmed);
-                absoluteUrl = resolveUrl(absoluteUrl);
-                return wrapProxy(absoluteUrl);
+                return rewriteUrlToken(trimmed);
             }).join('\n');
 
             return new NextResponse(rewrittenM3u8, {
