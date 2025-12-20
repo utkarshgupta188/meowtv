@@ -63,7 +63,9 @@ function isProbablySegmentUrl(u: string): boolean {
         lower.includes('.mkv') ||
         lower.includes('.aac') ||
         lower.includes('.mp3') ||
-        lower.includes('.key')
+        lower.includes('.key') ||
+        // Some sources use extension-less segment endpoints.
+        lower.includes('/segment/')
     );
 }
 
@@ -72,6 +74,7 @@ export async function GET(request: NextRequest) {
     const referer = request.nextUrl.searchParams.get('referer') || 'https://net51.cc/';
     const cookie = request.nextUrl.searchParams.get('cookie') || 'hd=on';
     const decryptParam = request.nextUrl.searchParams.get('decrypt'); // 'kartoons'
+    const kindParam = (request.nextUrl.searchParams.get('kind') || '').toLowerCase(); // 'playlist' | 'seg'
     const rangeHeader = request.headers.get('range');
 
     console.log('[HLS Proxy] === NEW REQUEST ===');
@@ -95,7 +98,7 @@ export async function GET(request: NextRequest) {
             (headers as any)['Range'] = rangeHeader;
         }
 
-        const response = await fetch(url, { headers });
+        const response = await fetch(url, { headers, signal: request.signal });
 
         if (!response.ok) {
             console.error(`Proxy fetch failed: ${response.status} for ${url}`);
@@ -123,15 +126,19 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        const forceSeg = kindParam === 'seg';
+        const forcePlaylist = kindParam === 'playlist';
+
         const looksLikePlaylistByUrl = url.toLowerCase().includes('.m3u8');
         const looksLikePlaylistByType = /mpegurl|m3u8/i.test(contentType);
         const canSniffText =
+            !forceSeg &&
             !isProbablySegmentUrl(url) &&
             (contentLength === 0 || contentLength <= 2_000_000) &&
             !/application\/octet-stream/i.test(contentType);
 
         let playlistText: string | null = null;
-        if (looksLikePlaylistByUrl || looksLikePlaylistByType) {
+        if (forcePlaylist || looksLikePlaylistByUrl || looksLikePlaylistByType) {
             playlistText = await response.text();
         } else if (canSniffText) {
             const probeText = await response.clone().text().catch(() => null);
@@ -144,7 +151,7 @@ export async function GET(request: NextRequest) {
         if (playlistText !== null) {
             let text = playlistText;
 
-            const proxySuffix = `&referer=${encodeURIComponent(referer)}&cookie=${encodeURIComponent(cookie)}${decryptParam ? `&decrypt=${decryptParam}` : ''}`;
+            const baseProxySuffix = `&referer=${encodeURIComponent(referer)}&cookie=${encodeURIComponent(cookie)}${decryptParam ? `&decrypt=${decryptParam}` : ''}`;
 
             const resolveUrl = (maybeRelative: string) => {
                 const ref = maybeRelative.trim();
@@ -175,10 +182,17 @@ export async function GET(request: NextRequest) {
                 return value.replace(/enc2:[A-Za-z0-9_-]+/g, (token) => decryptStream(token) ?? token);
             };
 
-            const wrapProxy = (absoluteUrl: string) => {
+            const inferKind = (absoluteUrl: string) => {
+                const lower = absoluteUrl.toLowerCase();
+                if (lower.includes('.m3u8') || /mpegurl|m3u8/i.test(lower)) return 'playlist';
+                return 'seg';
+            };
+
+            const wrapProxy = (absoluteUrl: string, kind?: 'playlist' | 'seg') => {
                 // If it's already our proxy, don't wrap again.
                 if (absoluteUrl.startsWith('/api/hls?') || absoluteUrl.startsWith('/api/proxy?')) return absoluteUrl;
-                return `/api/hls?url=${encodeURIComponent(absoluteUrl)}${proxySuffix}`;
+                const k = kind ?? inferKind(absoluteUrl);
+                return `/api/hls?url=${encodeURIComponent(absoluteUrl)}&kind=${k}${baseProxySuffix}`;
             };
 
             const rewriteUriAttributes = (line: string) => {
@@ -256,14 +270,13 @@ export async function GET(request: NextRequest) {
         }
 
         // For other resources (segments, images), just proxy them
-        const data = await response.arrayBuffer();
 
         const contentRange = response.headers.get('content-range') || '';
         const acceptRanges = response.headers.get('accept-ranges') || '';
         const upstreamLength = response.headers.get('content-length') || '';
 
         const outHeaders: Record<string, string> = {
-            'Content-Type': contentType,
+            'Content-Type': contentType || 'application/octet-stream',
             'Access-Control-Allow-Origin': '*',
             // Byte-range responses should not be cached aggressively.
             'Cache-Control': rangeHeader ? 'no-cache' : 'public, max-age=3600'
@@ -273,7 +286,8 @@ export async function GET(request: NextRequest) {
         if (acceptRanges) outHeaders['Accept-Ranges'] = acceptRanges;
         if (upstreamLength) outHeaders['Content-Length'] = upstreamLength;
 
-        return new NextResponse(data, {
+        // Stream instead of buffering (reduces latency/memory and avoids large arrayBuffers)
+        return new NextResponse(response.body, {
             status: response.status,
             headers: outHeaders
         });

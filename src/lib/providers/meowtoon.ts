@@ -276,7 +276,7 @@ export const MeowToonProvider: Provider = {
                     if (!m3u8Url || !m3u8Url.startsWith('http')) continue;
 
                     // Route through our HLS proxy so `enc2:` lines get decrypted server-side.
-                    const proxied = `/api/hls?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent(m3u8Url)}&decrypt=kartoons`;
+                    const proxied = `/api/hls?url=${encodeURIComponent(m3u8Url)}&kind=playlist&referer=${encodeURIComponent(m3u8Url)}&decrypt=kartoons`;
                     return {
                         videoUrl: proxied,
                         headers: {},
