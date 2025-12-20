@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
     const cookie = request.nextUrl.searchParams.get('cookie') || 'hd=on';
     const decryptParam = request.nextUrl.searchParams.get('decrypt'); // 'kartoons'
     const directParam = request.nextUrl.searchParams.get('direct');
+    const kindParam = request.nextUrl.searchParams.get('kind'); // 'playlist' | 'seg' | null
     const rangeHeader = request.headers.get('range');
 
     console.log('[HLS Proxy] === NEW REQUEST ===');
@@ -131,12 +132,13 @@ export async function GET(request: NextRequest) {
         const looksLikePlaylistByUrl = url.toLowerCase().includes('.m3u8');
         const looksLikePlaylistByType = /mpegurl|m3u8/i.test(contentType);
         const canSniffText =
+            kindParam !== 'seg' &&
             !isProbablySegmentUrl(url) &&
             (contentLength === 0 || contentLength <= 2_000_000) &&
             !/application\/octet-stream/i.test(contentType);
 
         let playlistText: string | null = null;
-        if (looksLikePlaylistByUrl || looksLikePlaylistByType) {
+        if (kindParam === 'playlist' || looksLikePlaylistByUrl || looksLikePlaylistByType) {
             playlistText = await response.text();
         } else if (canSniffText) {
             const probeText = await response.clone().text().catch(() => null);
@@ -152,10 +154,10 @@ export async function GET(request: NextRequest) {
             // For Kartoons: proxy playlists so we can decrypt enc2 lines server-side,
             // but allow decrypted segment/key/media URLs to be fetched directly when possible.
             // This matches the Android approach (decrypt playlist contents, then player fetches segments directly).
+            // Default to proxying segments for reliability (CORS). Allow opt-in direct mode.
             const directSegments =
                 decryptParam === 'kartoons' &&
-                directParam !== '0' &&
-                directParam !== 'false';
+                (directParam === '1' || directParam === 'true');
 
             const proxySuffix = `&referer=${encodeURIComponent(referer)}&cookie=${encodeURIComponent(cookie)}${decryptParam ? `&decrypt=${decryptParam}` : ''}`;
 
@@ -188,10 +190,10 @@ export async function GET(request: NextRequest) {
                 return value.replace(/enc2:[A-Za-z0-9_-]+/g, (token) => decryptStream(token) ?? token);
             };
 
-            const wrapProxy = (absoluteUrl: string) => {
+            const wrapProxy = (absoluteUrl: string, kind: 'playlist' | 'seg') => {
                 // If it's already our proxy, don't wrap again.
                 if (absoluteUrl.startsWith('/api/hls?') || absoluteUrl.startsWith('/api/proxy?')) return absoluteUrl;
-                return `/api/hls?url=${encodeURIComponent(absoluteUrl)}${proxySuffix}`;
+                return `/api/hls?url=${encodeURIComponent(absoluteUrl)}${proxySuffix}&kind=${kind}`;
             };
 
             const looksLikePlaylistUrl = (u: string) => {
@@ -204,12 +206,12 @@ export async function GET(request: NextRequest) {
                 absoluteUrl = resolveUrl(absoluteUrl);
 
                 // Always proxy playlists so we can keep decrypting nested enc2 playlists.
-                if (looksLikePlaylistUrl(absoluteUrl)) return wrapProxy(absoluteUrl);
+                if (looksLikePlaylistUrl(absoluteUrl)) return wrapProxy(absoluteUrl, 'playlist');
 
                 // For Kartoons, emitting direct segment URLs is much faster if CORS allows it.
                 if (directSegments) return absoluteUrl;
 
-                return wrapProxy(absoluteUrl);
+                return wrapProxy(absoluteUrl, 'seg');
             };
 
             const rewriteUriAttributes = (line: string) => {
