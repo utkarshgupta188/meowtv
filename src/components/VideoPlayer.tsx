@@ -164,10 +164,11 @@ export default function VideoPlayer({
                 enableWorker: true,
                 // These are VOD-style streams; low-latency mode can increase buffer/codec edge cases.
                 lowLatencyMode: false,
-                // Many proxied/decrypted sources are slow per-fragment; 20s is too aggressive.
-                fragLoadingTimeOut: 60000,
-                manifestLoadingTimeOut: 60000,
-                levelLoadingTimeOut: 60000,
+                // Proxied/decrypted sources can be slow, but 60s stalls feel terrible.
+                // Use a moderate timeout + retries instead.
+                fragLoadingTimeOut: 30000,
+                manifestLoadingTimeOut: 30000,
+                levelLoadingTimeOut: 30000,
                 // Retry transient network stalls/timeouts more patiently.
                 fragLoadingMaxRetry: 6,
                 fragLoadingRetryDelay: 1000,

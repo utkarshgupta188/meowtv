@@ -95,7 +95,11 @@ export async function GET(request: NextRequest) {
             (headers as any)['Range'] = rangeHeader;
         }
 
-        const response = await fetch(url, { headers });
+        const response = await fetch(url, {
+            headers,
+            // If the client aborts (Hls.js timeout, navigation, etc.), abort upstream too.
+            signal: request.signal,
+        });
 
         if (!response.ok) {
             console.error(`Proxy fetch failed: ${response.status} for ${url}`);
@@ -255,8 +259,9 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // For other resources (segments, images), just proxy them
-        const data = await response.arrayBuffer();
+        // For other resources (segments, images), stream the response.
+        // Buffering large segments increases latency and memory usage.
+        const body = response.body;
 
         const contentRange = response.headers.get('content-range') || '';
         const acceptRanges = response.headers.get('accept-ranges') || '';
@@ -273,6 +278,15 @@ export async function GET(request: NextRequest) {
         if (acceptRanges) outHeaders['Accept-Ranges'] = acceptRanges;
         if (upstreamLength) outHeaders['Content-Length'] = upstreamLength;
 
+        if (body) {
+            return new NextResponse(body, {
+                status: response.status,
+                headers: outHeaders
+            });
+        }
+
+        // Fallback (older runtimes / edge cases)
+        const data = await response.arrayBuffer();
         return new NextResponse(data, {
             status: response.status,
             headers: outHeaders
