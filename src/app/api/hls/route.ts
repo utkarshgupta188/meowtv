@@ -304,10 +304,9 @@ export async function GET(request: NextRequest) {
         if (upstreamLength) outHeaders['Content-Length'] = upstreamLength;
 
         if (body) {
-            return new NextResponse(body, {
-                status: response.status,
-                headers: outHeaders
-            });
+                            const directSegments =
+                                decryptParam === 'kartoons' &&
+                                (directParam === '1' || directParam === 'true');
         }
 
         // Fallback (older runtimes / edge cases)
