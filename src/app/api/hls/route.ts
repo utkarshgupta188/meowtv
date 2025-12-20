@@ -72,8 +72,6 @@ export async function GET(request: NextRequest) {
     const referer = request.nextUrl.searchParams.get('referer') || 'https://net51.cc/';
     const cookie = request.nextUrl.searchParams.get('cookie') || 'hd=on';
     const decryptParam = request.nextUrl.searchParams.get('decrypt'); // 'kartoons'
-    const directParam = request.nextUrl.searchParams.get('direct');
-    const kindParam = request.nextUrl.searchParams.get('kind'); // 'playlist' | 'seg' | null
     const rangeHeader = request.headers.get('range');
 
     console.log('[HLS Proxy] === NEW REQUEST ===');
@@ -97,11 +95,7 @@ export async function GET(request: NextRequest) {
             (headers as any)['Range'] = rangeHeader;
         }
 
-        const response = await fetch(url, {
-            headers,
-            // If the client aborts (Hls.js timeout, navigation, etc.), abort upstream too.
-            signal: request.signal,
-        });
+        const response = await fetch(url, { headers });
 
         if (!response.ok) {
             console.error(`Proxy fetch failed: ${response.status} for ${url}`);
@@ -132,13 +126,12 @@ export async function GET(request: NextRequest) {
         const looksLikePlaylistByUrl = url.toLowerCase().includes('.m3u8');
         const looksLikePlaylistByType = /mpegurl|m3u8/i.test(contentType);
         const canSniffText =
-            kindParam !== 'seg' &&
             !isProbablySegmentUrl(url) &&
             (contentLength === 0 || contentLength <= 2_000_000) &&
             !/application\/octet-stream/i.test(contentType);
 
         let playlistText: string | null = null;
-        if (kindParam === 'playlist' || looksLikePlaylistByUrl || looksLikePlaylistByType) {
+        if (looksLikePlaylistByUrl || looksLikePlaylistByType) {
             playlistText = await response.text();
         } else if (canSniffText) {
             const probeText = await response.clone().text().catch(() => null);
@@ -150,14 +143,6 @@ export async function GET(request: NextRequest) {
         // If it's a playlist (even when URL doesn't end with .m3u8), decrypt enc2: and rewrite URLs to go through proxy
         if (playlistText !== null) {
             let text = playlistText;
-
-            // For Kartoons: proxy playlists so we can decrypt enc2 lines server-side,
-            // but allow decrypted segment/key/media URLs to be fetched directly when possible.
-            // This matches the Android approach (decrypt playlist contents, then player fetches segments directly).
-            // Default to proxying segments for reliability (CORS). Allow opt-in direct mode.
-            const directSegments =
-                decryptParam === 'kartoons' &&
-                (directParam === '1' || directParam === 'true');
 
             const proxySuffix = `&referer=${encodeURIComponent(referer)}&cookie=${encodeURIComponent(cookie)}${decryptParam ? `&decrypt=${decryptParam}` : ''}`;
 
@@ -190,28 +175,10 @@ export async function GET(request: NextRequest) {
                 return value.replace(/enc2:[A-Za-z0-9_-]+/g, (token) => decryptStream(token) ?? token);
             };
 
-            const wrapProxy = (absoluteUrl: string, kind: 'playlist' | 'seg') => {
+            const wrapProxy = (absoluteUrl: string) => {
                 // If it's already our proxy, don't wrap again.
                 if (absoluteUrl.startsWith('/api/hls?') || absoluteUrl.startsWith('/api/proxy?')) return absoluteUrl;
-                return `/api/hls?url=${encodeURIComponent(absoluteUrl)}${proxySuffix}&kind=${kind}`;
-            };
-
-            const looksLikePlaylistUrl = (u: string) => {
-                const lower = u.toLowerCase();
-                return lower.includes('.m3u8') || lower.includes('playlist');
-            };
-
-            const rewriteUrlToken = (token: string) => {
-                let absoluteUrl = decryptIfNeeded(token);
-                absoluteUrl = resolveUrl(absoluteUrl);
-
-                // Always proxy playlists so we can keep decrypting nested enc2 playlists.
-                if (looksLikePlaylistUrl(absoluteUrl)) return wrapProxy(absoluteUrl, 'playlist');
-
-                // For Kartoons, emitting direct segment URLs is much faster if CORS allows it.
-                if (directSegments) return absoluteUrl;
-
-                return wrapProxy(absoluteUrl, 'seg');
+                return `/api/hls?url=${encodeURIComponent(absoluteUrl)}${proxySuffix}`;
             };
 
             const rewriteUriAttributes = (line: string) => {
@@ -222,18 +189,20 @@ export async function GET(request: NextRequest) {
                 // Some tags may use KEYFORMATURI= as well.
                 out = out.replace(/(URI|KEYFORMATURI)="([^"]+)"/gi, (_match, keyName: string, uri: string) => {
                     // If already proxied, leave it.
-                    if (uri.startsWith('/api/hls?') || uri.startsWith('/api/proxy?')) return `${keyName}="${uri}"`;
-                    const rewritten = rewriteUrlToken(uri);
-                    return `${keyName}="${rewritten}"`;
+                    if (uri.startsWith('/api/hls?')) return `${keyName}="${uri}"`;
+                    let absoluteUrl = decryptIfNeeded(uri);
+                    absoluteUrl = resolveUrl(absoluteUrl);
+                    return `${keyName}="${wrapProxy(absoluteUrl)}"`;
                 });
 
                 // Unquoted form: URI=foo.m3u8 or URI=https://... or URI=enc2:...
                 // Only rewrite if it looks like a URL/path token (stop at comma/space)
                 out = out.replace(/(URI|KEYFORMATURI)=([^,\s]+)/gi, (_match, keyName: string, uri: string) => {
                     // If it was already handled by quoted pass or already proxied, skip.
-                    if (uri.startsWith('"') || uri.startsWith('/api/hls?') || uri.startsWith('/api/proxy?')) return `${keyName}=${uri}`;
-                    const rewritten = rewriteUrlToken(uri);
-                    return `${keyName}=${rewritten}`;
+                    if (uri.startsWith('"') || uri.startsWith('/api/hls?')) return `${keyName}=${uri}`;
+                    let absoluteUrl = decryptIfNeeded(uri);
+                    absoluteUrl = resolveUrl(absoluteUrl);
+                    return `${keyName}=${wrapProxy(absoluteUrl)}`;
                 });
 
                 return out;
@@ -253,7 +222,9 @@ export async function GET(request: NextRequest) {
                 // Idempotency: if playlist already contains proxied lines, keep them.
                 if (trimmed.startsWith('/api/hls?') || trimmed.startsWith('/api/proxy?')) return trimmed;
 
-                return rewriteUrlToken(trimmed);
+                let absoluteUrl = decryptIfNeeded(trimmed);
+                absoluteUrl = resolveUrl(absoluteUrl);
+                return wrapProxy(absoluteUrl);
             }).join('\n');
 
             return new NextResponse(rewrittenM3u8, {
@@ -284,9 +255,8 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // For other resources (segments, images), stream the response.
-        // Buffering large segments increases latency and memory usage.
-        const body = response.body;
+        // For other resources (segments, images), just proxy them
+        const data = await response.arrayBuffer();
 
         const contentRange = response.headers.get('content-range') || '';
         const acceptRanges = response.headers.get('accept-ranges') || '';
@@ -303,14 +273,6 @@ export async function GET(request: NextRequest) {
         if (acceptRanges) outHeaders['Accept-Ranges'] = acceptRanges;
         if (upstreamLength) outHeaders['Content-Length'] = upstreamLength;
 
-        if (body) {
-                            const directSegments =
-                                decryptParam === 'kartoons' &&
-                                (directParam === '1' || directParam === 'true');
-        }
-
-        // Fallback (older runtimes / edge cases)
-        const data = await response.arrayBuffer();
         return new NextResponse(data, {
             status: response.status,
             headers: outHeaders
