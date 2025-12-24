@@ -52,7 +52,10 @@ async function fetchJson<T>(url: string, timeoutMs: number = 8_000): Promise<T> 
 
 function toLocalKartoonsStreamUrl(encodedLink: string): string {
     const clean = String(encodedLink || '').replace(/\s+/g, '');
-    return `${DECRYPT_BASE}/kartoons?data=${encodeURIComponent(clean)}`;
+    // Fetch the decrypted playlist server-side via our HLS proxy so the client never hits
+    // kartoondecrypt directly. The proxy will also rewrite segment/key URIs for us.
+    const upstream = `${DECRYPT_BASE}/kartoons?data=${encodeURIComponent(clean)}`;
+    return `/api/hls?url=${encodeURIComponent(upstream)}&decrypt=kartoons`;
 }
 
 function parseContentId(raw: string): { type: 'movie' | 'series'; identifier: string } | null {
