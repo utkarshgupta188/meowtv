@@ -154,6 +154,22 @@ export default function VideoPlayer({
         }
     }, [initialUrl, languageId]);
 
+    // Cleanup when component unmounts (navigating away)
+    useEffect(() => {
+        return () => {
+            const video = videoRef.current;
+            if (video) {
+                video.pause();
+                video.removeAttribute('src');
+                try { video.load(); } catch { /* ignore */ }
+            }
+            if (hlsRef.current) {
+                hlsRef.current.destroy();
+                hlsRef.current = null;
+            }
+        };
+    }, []);
+
     useEffect(() => {
         if (!isMounted) return;
         const video = videoRef.current;
