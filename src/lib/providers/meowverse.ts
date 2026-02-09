@@ -2,7 +2,7 @@ import { Provider, HomePageRow, ContentItem, MovieDetails, Episode, VideoRespons
 import * as cheerio from 'cheerio';
 import { getHlsProxyUrl, getSimpleProxyUrl } from '../proxy-config';
 
-const MAIN_URL = 'https://net20.cc';
+const MAIN_URL = 'https://net22.cc';
 const NEW_URL = 'https://net51.cc';
 
 const HEADERS = {
