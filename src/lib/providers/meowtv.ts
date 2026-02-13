@@ -34,7 +34,7 @@ async function getSecurityKey(retries: number = 3): Promise<{ key: string | null
             }
 
             if (json && json.code === 200 && json.data) {
-                console.log('[MeowTV] getSecurityKey ok', { attempt, hasCookie: Boolean(cookie), keyLen: json.data?.length ?? 0 });
+
                 return { key: json.data, cookie };
             }
 

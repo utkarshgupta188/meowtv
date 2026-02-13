@@ -3,7 +3,7 @@ import * as cheerio from 'cheerio';
 import { getHlsProxyUrl, getSimpleProxyUrl } from '../proxy-config';
 
 const MAIN_URL = 'https://net22.cc';
-const NEW_URL = 'https://net51.cc';
+const NEW_URL = 'https://net52.cc';
 
 const HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -58,7 +58,7 @@ async function bypass(mainUrl: string, useProxy: boolean = false): Promise<strin
 
     // Return cached cookie if valid
     if (cachedCookie && Date.now() - timestamp < CACHE_DURATION) {
-        // console.log(`[CNC Verse] Using cached ${useProxy ? 'proxy' : 'direct'} cookie`);
+
         return cachedCookie;
     }
 
@@ -67,7 +67,7 @@ async function bypass(mainUrl: string, useProxy: boolean = false): Promise<strin
         let retries = 0;
         const maxRetries = 10;
 
-        console.log(`[CNC Verse] Starting bypass (${useProxy ? 'Proxy' : 'Direct'})...`);
+
         // Keep POSTing until we get success response
         while (retries < maxRetries) {
             const fetchFn = useProxy ? proxiedFetch : fetch;
@@ -97,7 +97,7 @@ async function bypass(mainUrl: string, useProxy: boolean = false): Promise<strin
                             cachedDirectCookie = cookieVal;
                             cacheDirectTimestamp = Date.now();
                         }
-                        console.log(`[CNC Verse] Bypass successful! (${useProxy ? 'Proxy' : 'Direct'})`);
+
                         return cookieVal;
                     }
                 }
@@ -130,7 +130,7 @@ async function fetchAllPages(
     while (hasMorePages) {
         try {
             const url = currentPage === 1 ? baseUrl : `${baseUrl}&page=${currentPage}`;
-            console.log(`[CNC Verse] Fetching page ${currentPage}: ${url}`);
+
 
             const res = await fetch(url, { headers });
             const data = await res.json();
@@ -139,13 +139,8 @@ async function fetchAllPages(
                 data.episodes.forEach((ep: any) => {
                     if (ep) allEpisodes.push(episodeProcessor(ep));
                 });
-                console.log(`[CNC Verse] Page ${currentPage}: Found ${data.episodes.length} episodes`);
-                console.log(`[CNC Verse] Pagination fields:`, {
-                    nextPageShow: data.nextPageShow,
-                    nextPage: data.nextPage,
-                    nextPageSeason: data.nextPageSeason,
-                    currentPage: currentPage
-                });
+
+
 
                 // Check nextPageShow field first - if it's 0, there are no more pages
                 if (data.nextPageShow === 0 || data.nextPageShow === '0') {
@@ -227,7 +222,7 @@ export const MeowVerseProvider: Provider = {
                     if (id) {
                         contents.push({
                             title: '',
-                            coverImage: `https://imgcdn.kim/poster/v/${id}.jpg`,
+                            coverImage: getSimpleProxyUrl(`https://imgcdn.kim/poster/v/${id}.jpg`),
                             id: id,
                             type: 'movie'
                         });
@@ -261,7 +256,7 @@ export const MeowVerseProvider: Provider = {
 
             return (data.searchResult || []).map((item: any) => ({
                 title: item.t,
-                coverImage: `https://imgcdn.kim/poster/v/${item.id}.jpg`,
+                coverImage: getSimpleProxyUrl(`https://imgcdn.kim/poster/v/${item.id}.jpg`),
                 id: item.id,
                 type: 'movie'
             }));
@@ -334,7 +329,7 @@ export const MeowVerseProvider: Provider = {
                             title: ep.t,
                             season: parseInt(ep.s?.replace('S', '') || '1'),
                             number: parseInt(ep.ep?.replace('E', '') || '1'),
-                            coverImage: `https://imgcdn.kim/epimg/150/${ep.id}.jpg`,
+                            coverImage: getSimpleProxyUrl(`https://imgcdn.kim/epimg/150/${ep.id}.jpg`),
                             sourceMovieId: id,
                             tracks: audioTracksFromPost as any
                         })
@@ -356,7 +351,7 @@ export const MeowVerseProvider: Provider = {
                                         title: ep.t,
                                         season: parseInt(ep.s?.replace('S', '') || '1'),
                                         number: parseInt(ep.ep?.replace('E', '') || '1'),
-                                        coverImage: `https://imgcdn.kim/epimg/150/${ep.id}.jpg`,
+                                        coverImage: getSimpleProxyUrl(`https://imgcdn.kim/epimg/150/${ep.id}.jpg`),
                                         sourceMovieId: id,
                                         tracks: audioTracksFromPost as any
                                     })
@@ -387,8 +382,8 @@ export const MeowVerseProvider: Provider = {
                 id: id,
                 title: data.title,
                 description: data.desc,
-                coverImage: `https://imgcdn.kim/poster/v/${id}.jpg`,
-                backgroundImage: `https://imgcdn.kim/poster/h/${id}.jpg`,
+                coverImage: getSimpleProxyUrl(`https://imgcdn.kim/poster/v/${id}.jpg`),
+                backgroundImage: getSimpleProxyUrl(`https://imgcdn.kim/poster/h/${id}.jpg`),
                 year: parseInt(data.year),
                 score: parseFloat(data.match?.replace('IMDb ', '') || '0'),
                 episodes,
@@ -401,7 +396,7 @@ export const MeowVerseProvider: Provider = {
                     ? data.suggest.map((item: any) => ({
                         id: item.id,
                         title: item.t || item.title || '',
-                        image: `https://imgcdn.kim/poster/v/${item.id}.jpg`,
+                        image: getSimpleProxyUrl(`https://imgcdn.kim/poster/v/${item.id}.jpg`),
                         type: 'show' as const,
                         year: item.year ? parseInt(String(item.year)) : undefined
                     }))
@@ -415,12 +410,12 @@ export const MeowVerseProvider: Provider = {
     },
 
     async fetchStreamUrl(movieId: string, episodeId: string, audioLang?: string): Promise<VideoResponse | null> {
-        console.log('[CNC Verse] fetchStreamUrl (VERSION: UA_FIX_APPLIED)');
+
         try {
             const cookieValue = await bypass(MAIN_URL, true); // PROXIED
             const time = Math.floor(Date.now() / 1000);
             const audioParam = audioLang || '';
-            console.log('[CNC Verse] Setting audio language:', audioParam || 'eng (default)');
+
 
             // Helper to merge cookies robustly
             const mergeCookies = (oldCookies: string, newSetCookieHeader: string | null) => {
@@ -441,7 +436,7 @@ export const MeowVerseProvider: Provider = {
                     const [key, val] = mainPart.split('=');
                     if (key) {
                         cookieMap.set(key, val || '');
-                        console.log(`[CNC Verse] Cookie update: ${key}=${val}`);
+
                     }
                 });
 
@@ -477,7 +472,7 @@ export const MeowVerseProvider: Provider = {
             // Important: this appears to be required even for default audio (otherwise net51 playlist may reply "Video ID not found!").
             let hashParams = '';
             try {
-                console.log('[CNC Verse] Step 2: Getting transfer hash from play.php');
+
                 const playUrl = `${MAIN_URL}/play.php`;
                 const playPostRes = await proxiedFetch(playUrl, {
                     method: 'POST',
@@ -496,7 +491,7 @@ export const MeowVerseProvider: Provider = {
                 const playText = await playPostRes.text();
                 try {
                     const playData = JSON.parse(playText);
-                    console.log('[CNC Verse] Play response:', playData);
+
                     if (playData && playData.h) {
                         hashParams = `&${playData.h}`;
                     }
@@ -510,7 +505,7 @@ export const MeowVerseProvider: Provider = {
             // Step 3: GET play.php (Net51) with hash to set session
             if (hashParams) {
                 try {
-                    console.log('[CNC Verse] Step 3: Transferring session to net51.cc');
+
                     const playGetUrl = `${NEW_URL}/play.php?id=${episodeId}${hashParams}`;
 
                     const playGetRes = await proxiedFetch(playGetUrl, {
@@ -522,7 +517,7 @@ export const MeowVerseProvider: Provider = {
                         redirect: 'manual'
                     });
 
-                    console.log('[CNC Verse] Step 3 status:', playGetRes.status);
+
                     streamCookies = mergeCookies(streamCookies, playGetRes.headers.get('x-proxied-set-cookie') || playGetRes.headers.get('set-cookie'));
 
                 } catch (e) {
@@ -533,9 +528,9 @@ export const MeowVerseProvider: Provider = {
             }
 
             // Step 4: Fetch playlist from net51.cc
-            const url = `${NEW_URL}/tv/playlist.php?id=${episodeId}&t=${audioParam}&tm=${time}`;
-            console.log('[CNC Verse] Step 4: Fetching playlist:', url);
-            console.log('[CNC Verse] With Cookies:', streamCookies);
+            // CLI Logic: Use /playlist.php (NOT /tv/playlist.php) as /tv/ can return broken video CDN URLs
+            const url = `${NEW_URL}/playlist.php?id=${episodeId}&t=${audioParam}&tm=${time}`;
+
 
             const headers = {
                 ...HEADERS,
@@ -559,7 +554,7 @@ export const MeowVerseProvider: Provider = {
             // Try net20 playlist endpoint as a backup.
             if (!resText || /Video ID not found!/i.test(resText)) {
                 console.warn('[CNC Verse] net51 playlist says Video ID not found; trying net20 fallback');
-                const url2 = `${MAIN_URL}/tv/playlist.php?id=${episodeId}&t=${audioParam}&tm=${time}`;
+                const url2 = `${MAIN_URL}/playlist.php?id=${episodeId}&t=${audioParam}&tm=${time}`;
                 try {
                     const fallbackRes = await proxiedFetch(url2, {
                         headers: {
@@ -593,7 +588,7 @@ export const MeowVerseProvider: Provider = {
                 const tracks: any[] = Array.isArray(item.tracks) ? item.tracks : [];
 
                 // Debug: Log all tracks
-                console.log('[CNC Verse] All tracks:', tracks);
+
 
                 // Audio languages should come from the stream itself (HLS #EXT-X-MEDIA TYPE=AUDIO).
                 // We deliberately do NOT return a premade list here.
@@ -648,8 +643,13 @@ export const MeowVerseProvider: Provider = {
                                 const language = rawLang || inferLang(label) || 'en';
                                 // Fix protocol-relative / relative URLs
                                 let subUrl = rawFile;
-                                if (subUrl.startsWith('//')) subUrl = `https:${subUrl}`;
-                                if (subUrl && !subUrl.startsWith('http')) subUrl = `${playlistBaseUrl}${subUrl}`;
+                                if (subUrl.startsWith('//')) {
+                                    subUrl = `https:${subUrl}`;
+                                } else if (subUrl && !subUrl.startsWith('http')) {
+                                    const base = playlistBaseUrl.endsWith('/') ? playlistBaseUrl.slice(0, -1) : playlistBaseUrl;
+                                    const path = subUrl.startsWith('/') ? subUrl : `/${subUrl}`;
+                                    subUrl = `${base}${path}`;
+                                }
                                 return {
                                     language,
                                     label,

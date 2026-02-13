@@ -2,7 +2,7 @@ import { VideoResponse } from './types';
 import { getHlsProxyUrl, getSimpleProxyUrl, PROXY_WORKER_URL } from '../proxy-config';
 
 const MAIN_URL = 'https://net22.cc';
-const NEW_URL = 'https://net51.cc';
+const NEW_URL = 'https://net52.cc';
 
 const HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -10,8 +10,6 @@ const HEADERS = {
 };
 
 // Cached cookies (Client-Side Memory Cache)
-// Note: On client navigation, these resets. But that's fine, we want fresh sessions per page load usually,
-// or we can rely on browser not clearing module state if SPA navigation happens.
 let cachedDirectCookie: string | null = null;
 let cachedProxyCookie: string | null = null;
 let cacheDirectTimestamp: number = 0;
@@ -64,12 +62,12 @@ async function bypass(mainUrl: string, useProxy: boolean = false): Promise<strin
         let retries = 0;
         const maxRetries = 10;
 
-        console.log(`[CNC Client] Starting bypass (${useProxy ? 'Proxy' : 'Direct'})...`);
+
         while (retries < maxRetries) {
             const fetchFn = useProxy ? proxiedFetch : fetch;
             // Add cache buster to prevent cached responses (missing Set-Cookie)
             const bypassUrl = `${mainUrl}/tv/p.php?_=${Date.now()}`;
-            console.log(`[CNC Client] Fetching bypass URL: ${bypassUrl}`);
+
 
             const res = await fetchFn(bypassUrl, {
                 method: 'POST',
@@ -93,10 +91,6 @@ async function bypass(mainUrl: string, useProxy: boolean = false): Promise<strin
                     : res.headers.get('set-cookie');
 
                 if (setCookie) {
-                    console.log(`[CNC Client] Bypass cookie received.`);
-                }
-
-                if (setCookie) {
                     const match = setCookie.match(/t_hash_t=([^;]+)/);
                     if (match) {
                         const cookieVal = match[1];
@@ -107,7 +101,7 @@ async function bypass(mainUrl: string, useProxy: boolean = false): Promise<strin
                             cachedDirectCookie = cookieVal;
                             cacheDirectTimestamp = Date.now();
                         }
-                        console.log(`[CNC Client] Bypass successful! (${useProxy ? 'Proxy' : 'Direct'})`);
+
                         return cookieVal;
                     } else {
                         console.warn(`[CNC Client] Set-Cookie found but t_hash_t NOT found in it.`);
@@ -131,7 +125,7 @@ async function bypass(mainUrl: string, useProxy: boolean = false): Promise<strin
 }
 
 export async function fetchStreamUrlClient(movieId: string, episodeId: string, audioLang?: string): Promise<VideoResponse | null> {
-    console.log('[CNC Client] fetchStreamUrl (CLIENT VERSION)');
+
     try {
         const cookieValue = await bypass(MAIN_URL, true); // PROXIED
         const time = Math.floor(Date.now() / 1000);
@@ -158,7 +152,8 @@ export async function fetchStreamUrlClient(movieId: string, episodeId: string, a
 
         if (audioParam) {
             try {
-                const langRes = await proxiedFetch(`${MAIN_URL}/language.php`, {
+                // Try NEW_URL for language setting (same as playlist)
+                const langRes = await proxiedFetch(`${NEW_URL}/language.php`, {
                     method: 'POST',
                     headers: {
                         ...HEADERS,
@@ -169,7 +164,7 @@ export async function fetchStreamUrlClient(movieId: string, episodeId: string, a
                     body: `lang=${audioParam}`
                 });
                 streamCookies = mergeCookies(streamCookies, langRes.headers.get('x-proxied-set-cookie') || langRes.headers.get('set-cookie'));
-            } catch (e) { console.error(e); }
+            } catch (e) { /* ignore */ }
         }
 
         // POST play.php
@@ -191,10 +186,10 @@ export async function fetchStreamUrlClient(movieId: string, episodeId: string, a
             try {
                 const playData = JSON.parse(playText);
                 if (playData && playData.h) hashParams = `&${playData.h}`;
-            } catch { }
-        } catch (e) { console.error(e); }
+            } catch { /* ignore */ }
+        } catch (e) { /* ignore */ }
 
-        // GET play.php
+        // GET play.php (Session Transfer)
         if (hashParams) {
             try {
                 const playGetUrl = `${NEW_URL}/play.php?id=${episodeId}${hashParams}`;
@@ -203,11 +198,35 @@ export async function fetchStreamUrlClient(movieId: string, episodeId: string, a
                     redirect: 'manual'
                 });
                 streamCookies = mergeCookies(streamCookies, playGetRes.headers.get('x-proxied-set-cookie') || playGetRes.headers.get('set-cookie'));
-            } catch (e) { console.error(e); }
+            } catch (e) { /* ignore */ }
         }
 
-        // Fetch Playlist
-        const url = `${NEW_URL}/tv/playlist.php?id=${episodeId}&t=${audioParam}&tm=${time}`;
+        // Fetch Title from post.php (Required for playlist.php to generate valid tokens)
+        let contentTitle = '';
+        try {
+            const postUrl = `${MAIN_URL}/post.php?id=${movieId}&t=${time}`;
+            const postRes = await proxiedFetch(postUrl, {
+                headers: { ...HEADERS, 'Cookie': streamCookies, 'Referer': refererNet20 }
+            });
+            const postData = await postRes.json();
+            contentTitle = postData.title || postData.t || '';
+        } catch (e) { /* ignore */ }
+
+        // Build Playlist URL
+        // CLI Logic: t={title}, h={clean_hash}
+        let hashClean = '';
+        if (hashParams) {
+            const rawH = hashParams.replace('&', ''); // Remove leading &
+            if (rawH.startsWith('in=')) hashClean = rawH.substring(3);
+            else hashClean = rawH;
+        }
+
+        const finalHashParam = hashClean ? `&h=${hashClean}` : '';
+        const titleParam = encodeURIComponent(contentTitle);
+
+        // Use /playlist.php (NOT /tv/playlist.php)
+        const url = `${NEW_URL}/playlist.php?id=${episodeId}&t=${titleParam}&tm=${time}${finalHashParam}`;
+
         let resText = '';
         let playlistBaseUrl = NEW_URL;
         let playlistReferer = `${NEW_URL}/`;
@@ -216,10 +235,10 @@ export async function fetchStreamUrlClient(movieId: string, episodeId: string, a
             const playlistRes = await proxiedFetch(url, { headers: { ...HEADERS, 'Cookie': streamCookies, 'Referer': `${NEW_URL}/home` } });
             resText = await playlistRes.text();
             streamCookies = mergeCookies(streamCookies, playlistRes.headers.get('x-proxied-set-cookie') || playlistRes.headers.get('set-cookie'));
-        } catch (e) { console.error(e); }
+        } catch (e) { /* ignore */ }
 
         if (!resText || /Video ID not found!/i.test(resText)) {
-            const url2 = `${MAIN_URL}/tv/playlist.php?id=${episodeId}&t=${audioParam}&tm=${time}`;
+            const url2 = `${MAIN_URL}/playlist.php?id=${episodeId}&t=${titleParam}&tm=${time}${finalHashParam}`;
             try {
                 const fallbackRes = await proxiedFetch(url2, { headers: { ...HEADERS, 'Cookie': streamCookies, 'Referer': refererNet20 } });
                 resText = await fallbackRes.text();
@@ -252,19 +271,40 @@ export async function fetchStreamUrlClient(movieId: string, episodeId: string, a
                     videoUrl: proxyUrl,
                     subtitles: (item.tracks || [])
                         .filter((t: any) => {
-                            // ... subtitle logic (simplified) ...
                             const kind = String(t?.kind ?? '').toLowerCase();
-                            return kind.includes('caption') || kind.includes('sub') || (String(t?.file).endsWith('.vtt'));
+                            const file = String(t?.file ?? '').toLowerCase();
+                            if (kind.includes('thumb')) return false;
+                            return (
+                                kind.includes('caption') ||
+                                kind.includes('sub') ||
+                                ((file.endsWith('.vtt') || file.endsWith('.srt')) && !kind)
+                            );
                         })
-                        .map((t: any) => ({
-                            language: t.language || t.label || 'en',
-                            label: t.label || 'Subtitles',
-                            url: getHlsProxyUrl(String(t.file).startsWith('http') ? t.file : `${playlistBaseUrl}${t.file}`, {
-                                referer: playlistReferer,
-                                cookie: streamCookies,
-                                ua: HEADERS['User-Agent']
-                            })
-                        })),
+                        .map((t: any) => {
+                            const rawLang = String(t?.srclang || t?.lang || t?.language || '').trim();
+                            const label = String(t?.label || t?.name || rawLang || 'Subtitles');
+                            const rawFile = String(t?.file || '').trim();
+
+                            let subUrl = rawFile;
+                            if (subUrl.startsWith('//')) {
+                                subUrl = `https:${subUrl}`;
+                            } else if (subUrl && !subUrl.startsWith('http')) {
+                                // Strip trailing slash from base to avoid double slashes
+                                const base = playlistBaseUrl.endsWith('/') ? playlistBaseUrl.slice(0, -1) : playlistBaseUrl;
+                                const path = subUrl.startsWith('/') ? subUrl : `/${subUrl}`;
+                                subUrl = `${base}${path}`;
+                            }
+
+                            return {
+                                language: rawLang || 'en',
+                                label: label,
+                                url: getHlsProxyUrl(subUrl, {
+                                    referer: playlistReferer,
+                                    cookie: streamCookies,
+                                    ua: HEADERS['User-Agent']
+                                })
+                            };
+                        }),
                     qualities: sources.map((s: any) => ({
                         quality: s.label || 'Auto',
                         url: getHlsProxyUrl(String(s.file).startsWith('http') ? s.file : `${playlistBaseUrl}${s.file.replace('/tv/', '/')}`, {

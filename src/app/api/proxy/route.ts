@@ -12,7 +12,7 @@ async function handleRequest(request: NextRequest) {
 
     try {
         const headers: HeadersInit = {
-            'User-Agent': uaParam || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'User-Agent': uaParam || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         };
 
         const range = request.headers.get('range');
@@ -21,8 +21,15 @@ async function handleRequest(request: NextRequest) {
         if (referer) headers['Referer'] = referer;
         if (cookie) headers['Cookie'] = cookie;
 
+        // Browser Emulation Headers (Critical for bypassing upstream blocks)
+        headers['sec-ch-ua'] = '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"';
+        headers['sec-ch-ua-mobile'] = '?0';
+        headers['sec-ch-ua-platform'] = '"Windows"';
+        headers['Accept-Language'] = 'en-US,en;q=0.9';
+        headers['Priority'] = 'u=1, i';
+
         // Forward critical headers for Auth/POST requests
-        const allowedHeaders = ['content-type', 'x-requested-with', 'accept', 'origin'];
+        const allowedHeaders = ['content-type', 'x-requested-with', 'accept', 'origin', 'authorization'];
         for (const h of allowedHeaders) {
             const v = request.headers.get(h);
             if (v) headers[h] = v;
@@ -48,15 +55,15 @@ async function handleRequest(request: NextRequest) {
 
         // Forward critical auth headers (Set-Cookie)
         const setCookie = response.headers.get('set-cookie');
-        if (setCookie) responseHeaders.set('Set-Cookie', setCookie);
+        if (setCookie) {
+            responseHeaders.set('Set-Cookie', setCookie);
+            // Critical for client-side bypass: Expose Set-Cookie to JS
+            responseHeaders.set('X-Proxied-Set-Cookie', setCookie);
+        }
 
-        // Forward critical streaming headers
-        const contentLength = response.headers.get('content-length');
-        if (contentLength) responseHeaders.set('Content-Length', contentLength);
+        responseHeaders.set('Access-Control-Expose-Headers', 'X-Proxied-Set-Cookie, Content-Length, Content-Range');
 
-        const contentRange = response.headers.get('content-range');
-        if (contentRange) responseHeaders.set('Content-Range', contentRange);
-
+        // Allow accept-ranges
         const acceptRanges = response.headers.get('accept-ranges');
         if (acceptRanges) responseHeaders.set('Accept-Ranges', acceptRanges);
 

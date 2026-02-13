@@ -182,9 +182,9 @@ export default async function WatchPage({
                                 Season {selectedSeason}
                             </h3>
                             <div className="episode-grid">
-                                {episodesBySeason[selectedSeason]?.map(epItem => (
+                                {episodesBySeason[selectedSeason]?.map((epItem, index) => (
                                     <a
-                                        key={epItem.id}
+                                        key={`${epItem.id}-${index}`}
                                         href={`/watch/${encodeURIComponent(decodedId)}?season=${selectedSeason}&ep=${encodeURIComponent(epItem.id)}`}
                                         className={`episode-item ${epItem.id === currentEpisode?.id ? 'active' : ''}`}
                                     >

@@ -1,5 +1,6 @@
 import { Provider, HomePageRow, ContentItem, MovieDetails, Episode, Season, VideoResponse } from './types';
 import { fetchHome as fetchXonHome, search as searchXon, fetchDetails as fetchXonDetails, fetchStream as fetchXonStream } from '../xon';
+import { getSimpleProxyUrl } from '../proxy-config';
 
 // Built from the Android provider in `Kartoons/`.
 const MAIN_URL = 'https://api.kartoons.fun';
@@ -34,12 +35,29 @@ function isAbortError(err: any): boolean {
     return name === 'AbortError' || code === 20;
 }
 
-async function fetchJson<T>(url: string, timeoutMs: number = 8_000): Promise<T> {
+async function fetchJson<T>(url: string, timeoutMs: number = 8_000, nextConfig?: RequestInit): Promise<T> {
     // Fast-fail so SSR doesn't hang on blocked networks.
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+        // Use proxy to bypass 403 blocking (Cloudflare/Geoblock)
+        let proxyUrl = getSimpleProxyUrl(url);
+
+        // On Server: Fetch directly (bypass proxy) to ensure Auth headers work and avoid relative URL issues
+        if (typeof window === 'undefined') {
+            proxyUrl = url;
+        }
+        const res = await fetch(proxyUrl, {
+            ...nextConfig, // Apply cache/next config
+            signal: controller.signal,
+            headers: {
+                ...nextConfig?.headers,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
+                'Referer': 'https://kartoons.fun/',
+                'Origin': 'https://kartoons.fun',
+                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtZW93dGVzdCIsImV4cCI6MTc3MTUyMjgxM30.fkB-98A4sskOW2Phx4nTe75cVMfgQwC45TBaab0weQM'
+            }
+        });
         if (!res.ok) {
             const body = await res.text().catch(() => '');
             throw new Error(`HTTP ${res.status} for ${url}${body ? `: ${body.slice(0, 200)}` : ''}`);
@@ -79,11 +97,13 @@ export const MeowToonProvider: Provider = {
 
             let kartoRows: HomePageRow[] = [];
             try {
+                // Cache home page for 1 hour to prevent rate-limit hydration mismatches
+                const cacheConfig = { next: { revalidate: 3600 } };
                 const [showsData, moviesData, popShowsData, popMoviesData] = await Promise.all([
-                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/shows/?page=1&limit=20`),
-                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/movies/?page=1&limit=20`),
-                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/popularity/shows?limit=15&period=day`),
-                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/popularity/movies?limit=15&period=day`)
+                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/shows/?page=1&limit=20`, 8000, cacheConfig),
+                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/movies/?page=1&limit=20`, 8000, cacheConfig),
+                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/popularity/shows?limit=15&period=day`, 8000, cacheConfig),
+                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/popularity/movies?limit=15&period=day`, 8000, cacheConfig)
                 ]);
 
                 const mapToItem = (item: any, type: 'series' | 'movie'): ContentItem => ({
@@ -128,7 +148,7 @@ export const MeowToonProvider: Provider = {
 
         try {
             const res = await fetchJson<KartoonsListResponse<any[]>>(
-                `${MAIN_URL}/api/search/suggestions?q=${encodeURIComponent(query)}&limit=20`
+                `${MAIN_URL}/api/search/suggestions?q=${encodeURIComponent(query)}&limit=20`, 8000, { next: { revalidate: 300 } }
             );
 
             const karto = (res.data || []).map((item: any) => {
@@ -213,7 +233,8 @@ export const MeowToonProvider: Provider = {
             const apiType = parsed.type === 'series' ? 'shows' : 'movies';
             const url = `${MAIN_URL}/api/${apiType}/${parsed.identifier}`;
 
-            const json = await fetchJson<any>(url);
+            // Cache details for 1 hour
+            const json = await fetchJson<any>(url, 8000, { next: { revalidate: 3600 } });
             const data = json?.data;
             if (!data) return null;
 
@@ -243,7 +264,7 @@ export const MeowToonProvider: Provider = {
 
                         const sUrl = `${MAIN_URL}/api/shows/${showSlug}/season/${seasonSlug}/all-episodes`;
                         try {
-                            const sJson = await fetchJson<any>(sUrl);
+                            const sJson = await fetchJson<any>(sUrl, 8000, { next: { revalidate: 3600 } });
                             const eps = Array.isArray(sJson?.data) ? sJson.data : [];
                             return eps
                                 .map((ep: any): Episode | null => {
@@ -360,12 +381,13 @@ export const MeowToonProvider: Provider = {
 
             let json: any;
             try {
-                json = await fetchJson<any>(url, 4_000);
+                // Do not cache streams
+                json = await fetchJson<any>(url, 4_000, { cache: 'no-store' });
             } catch (e) {
                 if (isAbortError(e)) {
                     // Retry once with a slightly longer timeout before giving up
                     try {
-                        json = await fetchJson<any>(url, 8_000);
+                        json = await fetchJson<any>(url, 8_000, { cache: 'no-store' });
                     } catch (retryErr) {
                         if (isAbortError(retryErr)) return null;
                         console.error('[MeowToon] fetchStreamUrl retry failed:', retryErr);

@@ -29,11 +29,6 @@ export default function VideoPlayer({
     languageId,
     showOpenDownload = true
 }: VideoPlayerProps) {
-    console.log('[VideoPlayer] Received:', {
-        subtitlesCount: subtitles.length,
-        qualitiesCount: qualities.length,
-        audioTracksCount: audioTracks.length
-    });
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const plyrRef = useRef<any>(null);
@@ -197,12 +192,12 @@ export default function VideoPlayer({
             // Check if URL has blob: prefix (MeowToon playlists)
             if (url.startsWith('blob:')) {
                 const actualUrl = url.slice('blob:'.length);
-                console.log('[VideoPlayer] Fetching playlist client-side from:', actualUrl);
+
 
                 try {
                     const response = await fetch(actualUrl);
                     const playlistText = await response.text();
-                    console.log('[VideoPlayer] Playlist fetched, creating blob URL');
+
 
                     // Create a blob URL from the playlist
                     const blob = new Blob([playlistText], { type: 'application/vnd.apple.mpegurl' });
@@ -283,65 +278,73 @@ export default function VideoPlayer({
                 hls.loadSource(processedUrl);
                 hls.attachMedia(video);
 
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    console.log('[VideoPlayer] HLS Manifest Parsed:', {
-                        audioTracks: hls.audioTracks?.length || 0,
-                        levels: hls.levels?.length || 0,
-                        levelDetails: hls.levels?.map((lvl: any) => ({
-                            height: lvl.height,
-                            width: lvl.width,
-                            bitrate: lvl.bitrate,
-                            url: lvl.url?.[0]
-                        }))
-                    });
-
-                    // Check if HLS has multiple audio tracks (internal switching)
+                const updateAudioTracks = () => {
                     if (hls.audioTracks && hls.audioTracks.length > 1) {
                         setUseInternalAudio(true);
                         setInternalAudioTracks(hls.audioTracks.map((t, i) => ({
                             id: i,
                             name: t.name || t.lang || `Audio ${i + 1}`
                         })));
+
+                        // Sync current audio state with HLS active track
+                        let activeIndex = hls.audioTrack;
+                        if (activeIndex === -1) {
+                            // If no manual track set, find default
+                            activeIndex = hls.audioTracks.findIndex(t => t.default);
+                            if (activeIndex === -1) activeIndex = 0;
+                        }
+                        setCurrentAudio(activeIndex);
                     } else {
                         setUseInternalAudio(false);
                         setInternalAudioTracks([]);
                     }
+                };
 
-                    // Internal quality switching from HLS variant levels
-                    if (hls.levels && hls.levels.length > 1) {
-                        console.log('[VideoPlayer] Enabling internal quality switching with', hls.levels.length, 'levels');
-                        setUseInternalQuality(true);
-                        const levelLabels = hls.levels.map((lvl, idx) => {
-                            const h = (lvl as any).height as number | undefined;
-                            const br = (lvl as any).bitrate as number | undefined;
-                            if (h && Number.isFinite(h)) return { id: idx, label: `${h}p` };
-                            if (br && Number.isFinite(br)) return { id: idx, label: `${Math.round(br / 1000)} kbps` };
-                            return { id: idx, label: `Level ${idx + 1}` };
-                        });
-                        setInternalQualityLevels(levelLabels);
-                        console.log('[VideoPlayer] Quality levels:', levelLabels);
-
-                        // Default to highest level (best height/bitrate)
-                        let bestLevel = 0;
-                        let bestScore = -1;
-                        for (let i = 0; i < hls.levels.length; i++) {
-                            const lvl: any = hls.levels[i];
-                            const height = typeof lvl?.height === 'number' ? lvl.height : 0;
-                            const bitrate = typeof lvl?.bitrate === 'number' ? lvl.bitrate : 0;
-                            const score = (height || 0) * 1_000_000 + (bitrate || 0);
-                            if (score > bestScore) {
-                                bestScore = score;
-                                bestLevel = i;
-                            }
-                        }
-                        setCurrentQuality(bestLevel);
-                        hls.currentLevel = bestLevel;
-                    } else {
-                        console.log('[VideoPlayer] Only', hls.levels?.length || 0, 'level(s) detected, no quality switching');
-                        setUseInternalQuality(false);
-                        setInternalQualityLevels([]);
-                    }
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    // Disable HLS internal subtitles by default to prevent conflicts/random display
+                    hls.subtitleDisplay = false;
+                    hls.subtitleTrack = -1;
+                    updateAudioTracks();
                 });
+
+                hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => {
+                    updateAudioTracks();
+                });
+
+                // Internal quality switching from HLS variant levels
+                if (hls.levels && hls.levels.length > 1) {
+
+                    setUseInternalQuality(true);
+                    const levelLabels = hls.levels.map((lvl, idx) => {
+                        const h = (lvl as any).height as number | undefined;
+                        const br = (lvl as any).bitrate as number | undefined;
+                        if (h && Number.isFinite(h)) return { id: idx, label: `${h}p` };
+                        if (br && Number.isFinite(br)) return { id: idx, label: `${Math.round(br / 1000)} kbps` };
+                        return { id: idx, label: `Level ${idx + 1}` };
+                    });
+                    setInternalQualityLevels(levelLabels);
+
+
+                    // Default to highest level (best height/bitrate)
+                    let bestLevel = 0;
+                    let bestScore = -1;
+                    for (let i = 0; i < hls.levels.length; i++) {
+                        const lvl: any = hls.levels[i];
+                        const height = typeof lvl?.height === 'number' ? lvl.height : 0;
+                        const bitrate = typeof lvl?.bitrate === 'number' ? lvl.bitrate : 0;
+                        const score = (height || 0) * 1_000_000 + (bitrate || 0);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestLevel = i;
+                        }
+                    }
+                    setCurrentQuality(bestLevel);
+                    hls.currentLevel = bestLevel;
+                } else {
+
+                    setUseInternalQuality(false);
+                    setInternalQualityLevels([]);
+                }
 
                 hls.on(Hls.Events.ERROR, (event, data) => {
                     const decodeUpstreamUrl = (maybeProxyUrl: string | undefined) => {
@@ -372,16 +375,7 @@ export default function VideoPlayer({
 
                     // Always print a JSON snapshot too, because DevTools sometimes renders objects as `{}`.
                     // (e.g. when properties are non-enumerable/getters or get stripped in some builds)
-                    if ((data as any)?.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                        console.error('HLS Media Error', baseSnapshot);
-                        console.error('HLS Media Error JSON', JSON.stringify(baseSnapshot));
-                    } else if ((data as any)?.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                        console.error('HLS Network Error', baseSnapshot);
-                        console.error('HLS Network Error JSON', JSON.stringify(baseSnapshot));
-                    } else {
-                        console.error('HLS Error', baseSnapshot);
-                        console.error('HLS Error JSON', JSON.stringify(baseSnapshot));
-                    }
+                    // console.error('HLS Error snapshot:', JSON.stringify(baseSnapshot));
 
                     if ((data as any)?.fatal) {
                         switch (data.type) {
@@ -792,28 +786,43 @@ export default function VideoPlayer({
                                         if (idx >= 0 && subtitles[idx]) {
                                             const target = subtitles[idx];
 
-                                            // Track order can differ from DOM order; try to match by label/language.
-                                            let matchIndex = -1;
-                                            for (let i = 0; i < video.textTracks.length; i++) {
-                                                const tt = video.textTracks[i];
-                                                if (tt.label && tt.label === target.title) {
-                                                    matchIndex = i;
+                                            // Find the corresponding TextTrack by matching the <track> element's src
+                                            // This avoids confusing External tracks with HLS internal tracks
+                                            let foundTrack: TextTrack | null = null;
+                                            const trackElements = video.getElementsByTagName('track');
+
+                                            // 1. Try to find by src (most reliable)
+                                            for (let i = 0; i < trackElements.length; i++) {
+                                                // Check if src matches (normalize checks to handle relative vs absolute)
+                                                if (trackElements[i].src === target.url || trackElements[i].src.endsWith(target.url)) {
+                                                    foundTrack = trackElements[i].track;
                                                     break;
                                                 }
-                                                if (tt.language && target.language && tt.language === target.language) {
-                                                    matchIndex = i;
+                                            }
+
+                                            // 2. Fallback: Match by label if src fails
+                                            if (!foundTrack) {
+                                                for (let i = 0; i < video.textTracks.length; i++) {
+                                                    const tt = video.textTracks[i];
+                                                    if (tt.label === target.title) {
+                                                        foundTrack = tt;
+                                                        break;
+                                                    }
                                                 }
                                             }
 
-                                            // Fallback: assume DOM track order matches subtitles[] order.
-                                            if (matchIndex < 0 && idx < video.textTracks.length) {
-                                                matchIndex = idx;
-                                            }
-
-                                            if (matchIndex >= 0 && video.textTracks[matchIndex]) {
-                                                video.textTracks[matchIndex].mode = 'showing';
-                                                // Plyr manages captions internally; ensure we update its selected track.
-                                                try { plyrAny.currentTrack = matchIndex; } catch { }
+                                            if (foundTrack) {
+                                                foundTrack.mode = 'showing';
+                                                // Sync Plyr
+                                                try {
+                                                    // Find index in textTracks for Plyr
+                                                    for (let i = 0; i < video.textTracks.length; i++) {
+                                                        if (video.textTracks[i] === foundTrack) {
+                                                            plyrAny.currentTrack = i;
+                                                            break;
+                                                        }
+                                                    }
+                                                } catch { }
                                                 try { plyrAny?.toggleCaptions?.(true); } catch { }
                                             } else {
                                                 try { plyrAny.currentTrack = -1; } catch { }

@@ -40,14 +40,18 @@ export default function WatchClient({
 
         // If no data and MeowVerse, fetch on client
         if (providerName === 'MeowVerse') {
-            console.log('[WatchClient] Fetching stream on client for MeowVerse...');
+
             setLoading(true);
             fetchStreamUrlClient(movieId, episodeId, typeof languageId === 'string' ? languageId : undefined)
                 .then(data => {
                     if (data) {
                         setVideoData({
                             videoUrl: data.videoUrl,
-                            subtitles: data.subtitles,
+                            subtitles: (data.subtitles || []).map((s: any) => ({
+                                title: s.label || s.title || 'Subtitles',
+                                url: s.url,
+                                language: s.language || 'en'
+                            })),
                             qualities: data.qualities,
                             audioTracks: [] // populated from props/wrapper usually
                         });

@@ -28,10 +28,7 @@ export async function GET(request: NextRequest) {
     const kindParam = (request.nextUrl.searchParams.get('kind') || '').toLowerCase(); // 'playlist' | 'seg'
     const rangeHeader = request.headers.get('range');
 
-    console.log('[HLS Proxy] === NEW REQUEST ===');
-    console.log('[HLS Proxy] URL:', url);
-    console.log('[HLS Proxy] Decrypt:', decryptParam);
-    console.log('[HLS Proxy] Referer:', referer);
+
 
     if (!url) {
         return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
@@ -102,10 +99,37 @@ export async function GET(request: NextRequest) {
 
         // If it's a playlist (even when URL doesn't end with .m3u8), decrypt enc2: and rewrite URLs to go through proxy
         if (playlistText !== null) {
+            // DEBUG: Check format
+            if (!looksLikePlaylistText(playlistText)) {
+                console.error('[HLS Proxy Debug] Invalid Playlist Content from:', url);
+                console.error('[HLS Proxy Debug] Body Preview:', playlistText.slice(0, 500));
+            }
             let text = playlistText;
 
             const proxySegments = request.nextUrl.searchParams.get('proxy_segments') !== 'false';
             const baseProxySuffix = `&referer=${encodeURIComponent(referer)}&cookie=${encodeURIComponent(cookie)}${decryptParam ? `&decrypt=${decryptParam}` : ''}${!proxySegments ? '&proxy_segments=false' : ''}`;
+
+            // =========================================================================================
+            // CRITICAL: repairUrl is REQUIRED for freecdn streams. 
+            // Upstream playlists often contain "in=unknown" which MUST be replaced with the valid token
+            // from the master playlist URL. DO NOT REMOVE THIS FUNCTION.
+            // =========================================================================================
+            const repairUrl = (u: string) => {
+                // Fix "in=unknown" or similar mangled tokens
+                // If we see `&in=` but not `&token=`, we might need to inject the master token if available.
+                if (u.includes('in=unknown') || u.includes('in=null')) {
+                    // Try to finding the 'in' param from the master playlist URL (the 'url' param of this request)
+                    const masterInMatch = url?.match(/[?&]in=([^&]+)/);
+                    // console.log('[HLS Repair] Fixing URL:', u);
+                    // console.log('[HLS Repair] Master URL:', url);
+                    // console.log('[HLS Repair] Match:', masterInMatch ? masterInMatch[1] : 'null');
+
+                    if (masterInMatch) {
+                        return u.replace(/in=[^&]+/, `in=${masterInMatch[1]}`);
+                    }
+                }
+                return u;
+            };
 
             const resolveUrl = (maybeRelative: string) => {
                 const ref = maybeRelative.trim();
@@ -113,13 +137,13 @@ export async function GET(request: NextRequest) {
                 if (ref.startsWith('/api/hls?') || ref.startsWith('/api/proxy?')) return ref;
 
                 // Absolute URL
-                if (/^https?:\/\//i.test(ref)) return ref;
+                if (/^https?:\/\//i.test(ref)) return repairUrl(ref);
 
                 // Resolve relative, root-relative (/foo), ../foo, and query-only (?a=b) correctly
                 try {
-                    return new URL(ref, url).toString();
+                    return repairUrl(new URL(ref, url).toString());
                 } catch {
-                    return ref;
+                    return repairUrl(ref);
                 }
             };
 
