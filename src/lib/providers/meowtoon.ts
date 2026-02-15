@@ -55,7 +55,7 @@ async function fetchJson<T>(url: string, timeoutMs: number = 8_000, nextConfig?:
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
                 'Referer': 'https://kartoons.fun/',
                 'Origin': 'https://kartoons.fun',
-                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtZW93dGVzdCIsImV4cCI6MTc3MTUyMjgxM30.fkB-98A4sskOW2Phx4nTe75cVMfgQwC45TBaab0weQM'
+                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtZW93dGVzdDEiLCJleHAiOjE3NzE3ODg1MTh9.izynKefr807Kv7uWgAqZVXzPim7nilpZiwu_hcqNHRg'
             }
         });
         if (!res.ok) {
@@ -92,12 +92,28 @@ export const MeowToonProvider: Provider = {
         if (page < 1) page = 1;
         if (page > 1) return [];
 
-        try {
-            const xonRows = await fetchXonHome().catch(() => []);
+        // 1. Define Xon fetch task
+        const xonTask = fetchXonHome()
+            .then((rows) => {
+                return rows.map((row) => ({
+                    name: `Xon • ${row.name}`,
+                    contents: row.items.map((i): ContentItem => ({
+                        id: `xon:${i.id}`,
+                        title: i.title,
+                        coverImage: normalizeImage(i.poster || i.backdrop),
+                        type: (i.type as XonContentType) === 'movie' ? 'movie' : 'series',
+                    })),
+                }));
+            })
+            .catch((e) => {
+                console.error('[MeowToon] Xon fetchHome failed:', e);
+                return [] as HomePageRow[];
+            });
 
-            let kartoRows: HomePageRow[] = [];
+        // 2. Define Kartoons fetch task
+        const kartoonsTask = (async (): Promise<HomePageRow[]> => {
             try {
-                // Cache home page for 1 hour to prevent rate-limit hydration mismatches
+                // Cache home page for 1 hour
                 const cacheConfig = { next: { revalidate: 3600 } };
                 const [showsData, moviesData, popShowsData, popMoviesData] = await Promise.all([
                     fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/shows/?page=1&limit=20`, 8000, cacheConfig),
@@ -113,34 +129,25 @@ export const MeowToonProvider: Provider = {
                     type
                 });
 
-                kartoRows = [
+                return [
                     { name: 'Popular Shows', contents: (popShowsData.data || []).map((i: any) => mapToItem(i, 'series')) },
                     { name: 'Popular Movies', contents: (popMoviesData.data || []).map((i: any) => mapToItem(i, 'movie')) },
                     { name: 'Shows', contents: (showsData.data || []).map((i: any) => mapToItem(i, 'series')) },
                     { name: 'Movies', contents: (moviesData.data || []).map((i: any) => mapToItem(i, 'movie')) }
                 ].filter(r => r.contents.length > 0);
-            } catch (kartErr) {
-                // If Kartoons endpoints fail or time out, still return Xon rows.
-                const label = isAbortError(kartErr) ? 'timeout/abort' : 'error';
-                console.warn(`[MeowToon] Kartoons home ${label}:`, kartErr);
+
+            } catch (err) {
+                if (!isAbortError(err)) {
+                    console.warn('[MeowToon] Kartoons fetchHome failed:', err);
+                }
+                return [] as HomePageRow[];
             }
+        })();
 
-            const xonMapped: HomePageRow[] = xonRows.map((row) => ({
-                name: `Xon • ${row.name}`,
-                contents: row.items.map((i) => ({
-                    id: `xon:${i.id}`,
-                    title: i.title,
-                    coverImage: normalizeImage(i.poster || i.backdrop),
-                    type: (i.type as XonContentType) === 'movie' ? 'movie' : 'series',
-                })),
-            }));
+        // 3. Run safely in parallel
+        const [xonRows, kartoRows] = await Promise.all([xonTask, kartoonsTask]);
 
-            return [...kartoRows, ...xonMapped];
-        } catch (e) {
-            if (isAbortError(e)) return [];
-            console.error('[MeowToon] fetchHome failed:', e);
-            return [];
-        }
+        return [...kartoRows, ...xonRows];
     },
 
     async search(query: string): Promise<ContentItem[]> {
