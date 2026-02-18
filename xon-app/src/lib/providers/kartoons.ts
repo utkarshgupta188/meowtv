@@ -20,13 +20,45 @@ function normalizeId(id: any): string | null {
   return s.length ? s : null;
 }
 
+const TOKEN_URL = 'https://kartoon-api.vercel.app/api/key';
+let cachedToken: string | null = null;
+
+async function fetchKartoonsToken(): Promise<string | null> {
+  if (cachedToken) return cachedToken;
+  try {
+    const res = await fetch(TOKEN_URL);
+    if (res.ok) {
+      const data = await res.json();
+      cachedToken = data.apiKey || null;
+      return cachedToken;
+    }
+  } catch (e) {
+    console.error('[Kartoons] Failed to fetch token:', e);
+  }
+  return null;
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   // Keep this simple and fast-fail so SSR doesn't hang for 10s+ on blocked networks.
   const controller = new AbortController();
   const timeoutMs = 4_000;
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    const token = await fetchKartoonsToken();
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Referer': 'https://kartoons.fun/',
+      'Origin': 'https://kartoons.fun',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(url, {
+      cache: 'no-store',
+      signal: controller.signal,
+      headers
+    });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       throw new Error(`HTTP ${res.status} for ${url}${body ? `: ${body.slice(0, 200)}` : ''}`);

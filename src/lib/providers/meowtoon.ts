@@ -35,6 +35,24 @@ function isAbortError(err: any): boolean {
     return name === 'AbortError' || code === 20;
 }
 
+const TOKEN_URL = 'https://kartoon-api.vercel.app/api/key';
+let cachedToken: string | null = null;
+
+async function fetchKartoonsToken(): Promise<string | null> {
+    if (cachedToken) return cachedToken;
+    try {
+        const res = await fetch(TOKEN_URL);
+        if (res.ok) {
+            const data = await res.json();
+            cachedToken = data.apiKey || null;
+            return cachedToken;
+        }
+    } catch (e) {
+        console.error('[MeowToon] Failed to fetch Kartoons token:', e);
+    }
+    return null;
+}
+
 async function fetchJson<T>(url: string, timeoutMs: number = 8_000, nextConfig?: RequestInit): Promise<T> {
     // Fast-fail so SSR doesn't hang on blocked networks.
     const controller = new AbortController();
@@ -47,16 +65,23 @@ async function fetchJson<T>(url: string, timeoutMs: number = 8_000, nextConfig?:
         if (typeof window === 'undefined') {
             proxyUrl = url;
         }
+
+        const token = await fetchKartoonsToken();
+        const headers: Record<string, string> = {
+            ...nextConfig?.headers as Record<string, string>,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
+            'Referer': 'https://kartoons.fun/',
+            'Origin': 'https://kartoons.fun',
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch(proxyUrl, {
             ...nextConfig, // Apply cache/next config
             signal: controller.signal,
-            headers: {
-                ...nextConfig?.headers,
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
-                'Referer': 'https://kartoons.fun/',
-                'Origin': 'https://kartoons.fun',
-                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtZW93dGVzdDEiLCJleHAiOjE3NzE3ODg1MTh9.izynKefr807Kv7uWgAqZVXzPim7nilpZiwu_hcqNHRg'
-            }
+            headers
         });
         if (!res.ok) {
             const body = await res.text().catch(() => '');
