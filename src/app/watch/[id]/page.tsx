@@ -96,7 +96,7 @@ export default async function WatchPage({
         }
     }
 
-    console.log('[WatchPage] videoData:', videoData, 'Provider:', providerName);
+
 
     // Transform API data to Component Props
     // Note: If videoData is null (MeowVerse), these will be empty, but WatchClient will populate/render them later.
