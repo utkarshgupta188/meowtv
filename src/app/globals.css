@@ -619,8 +619,64 @@ select:focus-visible {
 }
 
 .nav-right {
-  gap: 24px;
+  flex: 1;
+  display: flex;
   justify-content: flex-end;
+  gap: 24px;
+}
+
+/* Search bar + provider switcher grouped */
+.nav-search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  max-width: 640px;
+}
+
+.nav-search-row>*:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  .nav-shell {
+    height: auto;
+    padding: 10px 16px;
+    row-gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .nav-left {
+    gap: 12px;
+    flex: 1;
+    width: auto;
+    /* override old width: 100% */
+  }
+
+  .nav-right {
+    width: 100%;
+    justify-content: stretch;
+    gap: 0;
+  }
+
+  .nav-search-row {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Make nav-links text smaller */
+  .nav-links a.btn {
+    padding: 0 10px;
+    font-size: 0.8rem;
+    height: 34px;
+  }
+
+  /* Provider button compact */
+  .provider-dropdown-btn {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
 }
 
 .logo {
@@ -679,25 +735,9 @@ select:focus-visible {
   gap: 10px;
 }
 
-@media (max-width: 960px) {
-  .nav-shell {
-    flex-wrap: wrap;
-    padding: 12px 18px;
-    row-gap: 12px;
-  }
-
-  .nav-left,
-  .nav-right {
-    width: 100%;
-  }
-
-  .nav-right {
-    justify-content: space-between;
-  }
-}
 
 .search-form {
-  width: min(440px, 42vw);
+  width: 100%;
 }
 
 .search-shell {
@@ -1011,7 +1051,166 @@ select:focus-visible {
   text-align: center;
 }
 
+/* ── Seek Overlay ─────────────────────────────────────────── */
+
+.seek-zone {
+  width: 100px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Frosted arch highlight on tap – pure CSS, no JS needed */
+.seek-zone--left {
+  border-radius: 0 100% 100% 0 / 0 50% 50% 0;
+}
+
+.seek-zone--right {
+  border-radius: 100% 0 0 100% / 50% 0 0 50%;
+}
+
+.seek-zone:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Visible seek button (fades with controls) */
+.seek-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: opacity 0.2s ease, transform 0.15s ease;
+  pointer-events: auto;
+  justify-content: center;
+}
+
+.seek-btn span {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: -2px;
+}
+
+.seek-btn:hover {
+  background: rgba(0, 0, 0, 0.65);
+  transform: scale(1.08);
+}
+
+.seek-btn:active {
+  transform: scale(0.92);
+}
+
+/* Ripple feedback popup */
+.seek-ripple {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  padding: 12px 14px;
+  border-radius: 50%;
+  color: #fff;
+  pointer-events: none;
+  animation: seek-pop 0.65s ease-out forwards;
+  z-index: 5;
+}
+
+.seek-ripple--left {
+  left: 50%;
+  transform: translateY(-50%) translateX(-50%);
+}
+
+.seek-ripple--right {
+  right: 50%;
+  transform: translateY(-50%) translateX(50%);
+}
+
+.seek-ripple span {
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@keyframes seek-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-50%) scale(0.7);
+  }
+
+  20% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(-50%) scale(1.1);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(-50%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-50%) scale(1.1);
+  }
+}
+
+/* Right ripple has opposite translate anchor */
+.seek-ripple--right {
+  animation: seek-pop-right 0.65s ease-out forwards;
+}
+
+@keyframes seek-pop-right {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) translateX(50%) scale(0.7);
+  }
+
+  20% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(50%) scale(1.1);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(50%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) translateX(50%) scale(1.1);
+  }
+}
+
+/* On mobile make seek zones and buttons bigger for easier tapping */
+@media (max-width: 768px) {
+  .seek-zone {
+    width: 88px;
+  }
+
+  .seek-btn {
+    width: 56px;
+    height: 56px;
+  }
+}
+
 /* Custom quality submenu injected into Vidstack settings panel */
+
 
 /* Main "Quality" row button (shown in root settings panel) */
 .vds-quality-menu-btn {
@@ -1486,4 +1685,260 @@ select:focus-visible {
   font-weight: 600;
   background-color: #3f3f46;
   /* Grey active indicator instead of pink */
+}
+
+/* ============================================================
+   MOBILE RESPONSIVE STYLES
+   Breakpoints: 768px (mobile), 480px (xs)
+   (Navbar 960px breakpoint is consolidated above near navbar styles)
+   ============================================================ */
+
+/* --- Navbar xs -------------------------------------------------- */
+@media (max-width: 768px) {
+  .hero {
+    height: 52vh;
+    min-height: 260px;
+  }
+
+  .hero-content {
+    padding: 0 16px 28px;
+  }
+
+  .hero-content>div {
+    gap: 12px;
+    max-width: 100%;
+  }
+
+  .hero-title {
+    font-size: clamp(1.4rem, 5vw, 2.2rem);
+  }
+
+  .hero-description {
+    font-size: 0.95rem;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .hero-actions {
+    gap: 10px;
+    padding-top: 8px;
+  }
+
+  .hero-actions .btn {
+    height: 40px;
+    padding: 0 18px;
+    font-size: 0.875rem;
+  }
+
+  .hero-dots {
+    bottom: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    height: 44vh;
+    min-height: 220px;
+  }
+
+  .hero-title {
+    font-size: clamp(1.2rem, 6vw, 1.8rem);
+  }
+
+  .hero-description {
+    display: none;
+    /* too cramped on xs */
+  }
+}
+
+/* --- Sections & Container ----------------------------------- */
+@media (max-width: 768px) {
+  .section {
+    margin-bottom: 36px;
+  }
+
+  .section-header {
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+  }
+
+  /* Slightly more padding at top so page doesn't start under navbar */
+  .page-shell {
+    padding-top: 0 !important;
+  }
+
+  /* Remove the large min-height gap below the player on mobile */
+  .watch-player-wrapper {
+    min-height: 0 !important;
+  }
+}
+
+/* --- Card Grid ---------------------------------------------- */
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+  }
+
+  .card {
+    border-radius: 8px;
+  }
+
+  .card-title {
+    font-size: 0.78rem;
+  }
+
+  /* Disable hover scale on mobile (touch devices) */
+  @media (hover: none) {
+    .card:hover {
+      transform: none;
+    }
+
+    .card:hover img {
+      transform: none;
+    }
+  }
+}
+
+/* --- Video Player Page -------------------------------------- */
+@media (max-width: 768px) {
+
+  /* Remove rounded corners on small screens - full width looks better */
+  .player-container {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    margin-bottom: 0;
+    /* Remove the gap between player and details */
+  }
+
+  /* Remove fixed min-height so player fills by aspect-ratio alone */
+  .player-shell {
+    min-height: unset;
+  }
+
+  /* Watch page: remove horizontal padding so player is edge-to-edge */
+  .page-shell .container.page-pad {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* But keep padding for the details section */
+  .details-container {
+    margin: 0 12px;
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .details-title {
+    font-size: clamp(1.1rem, 4vw, 1.5rem);
+  }
+
+  /* Episode grid - fewer columns on mobile */
+  .episode-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+  }
+
+  .episode-item {
+    padding: 8px 6px;
+    border-radius: 8px;
+  }
+
+  .episode-number {
+    font-size: 0.78rem;
+  }
+
+  .episode-title {
+    font-size: 0.72rem;
+  }
+
+  /* Recommendations section inside watch page */
+  .page-shell .container.page-pad .section {
+    padding: 0 12px;
+    margin-bottom: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+
+  /* xs: make player truly edge-to-edge */
+  .player-container {
+    margin-left: -16px;
+    margin-right: -16px;
+    width: calc(100% + 32px);
+    border-radius: 0;
+  }
+
+  .details-container {
+    margin: 8px 0;
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .page-pad {
+    padding-top: 12px;
+  }
+
+  /* Tighter section header */
+  .subsection-header {
+    font-size: 0.95rem;
+  }
+}
+
+/* --- Layout: main paddingTop matches navbar height on mobile -- */
+@media (max-width: 960px) {
+
+  /* Navbar becomes ~130px tall when search wraps to second row.
+     Add that space as top padding on the page shell. */
+  main.page-shell {
+    padding-top: 130px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  main.page-shell {
+    padding-top: 120px !important;
+  }
+}
+
+/* --- Footer ------------------------------------------------- */
+@media (max-width: 640px) {
+
+  footer .footer-content,
+  footer>div {
+    grid-template-columns: 1fr !important;
+    text-align: center;
+  }
+}
+
+/* --- Touch improvements ------------------------------------ */
+@media (hover: none) {
+
+  /* Remove hover card overlay on touch — it never clears */
+  .card-overlay {
+    display: none;
+  }
+
+  /* Make buttons easier to tap */
+  .btn {
+    min-height: 44px;
+  }
+
+  /* Quality menu buttons larger tap targets */
+  .vds-quality-option,
+  .vds-quality-menu-btn,
+  .vds-quality-back-btn {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    min-height: 44px;
+  }
+}
+
+/* --- Horizontal scroll cards smaller on mobile -------------- */
+@media (max-width: 480px) {
+  .horizontal-scroll .scroll-card-wrapper {
+    min-width: 120px;
+    width: 120px;
+  }
 }

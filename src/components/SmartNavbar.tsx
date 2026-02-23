@@ -69,11 +69,11 @@ export default function SmartNavbar() {
                     </nav>
                 </div>
 
-                <div className="nav-right" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
-                    <div style={{ flex: 1, maxWidth: '600px' }}>
+                <div className="nav-right">
+                    <div className="nav-search-row">
                         <SearchBar />
+                        <ProviderSwitcher />
                     </div>
-                    <ProviderSwitcher />
                 </div>
             </div>
         </header>

@@ -29,6 +29,113 @@ export interface VideoPlayerProps {
     showOpenDownload?: boolean;
 }
 
+const SEEK_SECONDS = 10;
+
+// Seek overlay: double-tap zones + always-visible side buttons
+function SeekOverlay({ playerRef }: { playerRef: React.RefObject<MediaPlayerInstance | null> }) {
+    const isControlsVisible = useMediaState('controlsVisible', playerRef);
+    const [feedback, setFeedback] = useState<'left' | 'right' | null>(null);
+    const lastTapRef = useRef<{ side: 'left' | 'right'; time: number } | null>(null);
+    const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const seek = (direction: 'left' | 'right') => {
+        const player = playerRef.current;
+        if (!player) return;
+        const delta = direction === 'right' ? SEEK_SECONDS : -SEEK_SECONDS;
+        player.currentTime = Math.max(0, Math.min(player.currentTime + delta, player.duration || 0));
+        setFeedback(direction);
+        if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+        feedbackTimer.current = setTimeout(() => setFeedback(null), 700);
+    };
+
+    const handleTap = (side: 'left' | 'right') => {
+        const now = Date.now();
+        const last = lastTapRef.current;
+        if (last && last.side === side && now - last.time < 300) {
+            // Double tap
+            lastTapRef.current = null;
+            seek(side);
+        } else {
+            lastTapRef.current = { side, time: now };
+        }
+    };
+
+    return (
+        <div
+            style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 10,
+                display: 'flex',
+                pointerEvents: 'none',
+            }}
+        >
+            {/* Left zone */}
+            <div
+                className="seek-zone seek-zone--left"
+                style={{ pointerEvents: 'auto' }}
+                onClick={() => handleTap('left')}
+                aria-label="Seek backward 10 seconds"
+            >
+                {/* Visible seek button */}
+                <button
+                    className="seek-btn"
+                    style={{ opacity: isControlsVisible ? 1 : 0 }}
+                    onClick={(e) => { e.stopPropagation(); seek('left'); }}
+                    aria-label="-10s"
+                >
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                        <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
+                    </svg>
+                    <span>10</span>
+                </button>
+                {/* Ripple feedback */}
+                {feedback === 'left' && (
+                    <div className="seek-ripple seek-ripple--left" key={Date.now()}>
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
+                            <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
+                        </svg>
+                        <span>-{SEEK_SECONDS}s</span>
+                    </div>
+                )}
+            </div>
+
+            {/* Middle passthrough */}
+            <div style={{ flex: 1 }} />
+
+            {/* Right zone */}
+            <div
+                className="seek-zone seek-zone--right"
+                style={{ pointerEvents: 'auto' }}
+                onClick={() => handleTap('right')}
+                aria-label="Seek forward 10 seconds"
+            >
+                {/* Visible seek button */}
+                <button
+                    className="seek-btn"
+                    style={{ opacity: isControlsVisible ? 1 : 0 }}
+                    onClick={(e) => { e.stopPropagation(); seek('right'); }}
+                    aria-label="+10s"
+                >
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                        <path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z" />
+                    </svg>
+                    <span>10</span>
+                </button>
+                {/* Ripple feedback */}
+                {feedback === 'right' && (
+                    <div className="seek-ripple seek-ripple--right" key={Date.now()}>
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
+                            <path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z" />
+                        </svg>
+                        <span>+{SEEK_SECONDS}s</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 // A component to render the Open/Download button that fades with Vidstack controls
 function CustomOverlayHUD({
     playerRef,
@@ -49,17 +156,22 @@ function CustomOverlayHUD({
         <div
             className="player-hud"
             style={{
-                opacity: isControlsVisible ? 1 : 0,
-                transition: 'opacity 0.2s ease',
-                pointerEvents: isControlsVisible ? 'auto' : 'none',
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 right: 0,
-                zIndex: 50
+                zIndex: 50,
+                pointerEvents: 'none',  /* NEVER block clicks on the container */
             }}
         >
-            <div className="player-hud-group">
+            <div
+                className="player-hud-group"
+                style={{
+                    opacity: isControlsVisible ? 1 : 0,
+                    transition: 'opacity 0.2s ease',
+                    pointerEvents: isControlsVisible ? 'auto' : 'none',
+                }}
+            >
                 <div className="player-hud-panel">
                     <a
                         href={url}
@@ -376,6 +488,8 @@ export default function VideoPlayer({
                         />
                     ))}
                 </MediaProvider>
+
+                <SeekOverlay playerRef={playerRef} />
 
                 <CustomOverlayHUD
                     playerRef={playerRef}

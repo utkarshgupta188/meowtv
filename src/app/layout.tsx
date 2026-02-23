@@ -1,8 +1,15 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import SmartNavbar from '@/components/SmartNavbar';
 import NextTopLoader from 'nextjs-toploader';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#120810',
+};
 
 export const metadata: Metadata = {
   title: 'MeowTV',

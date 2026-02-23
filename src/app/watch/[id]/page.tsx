@@ -125,7 +125,7 @@ export default async function WatchPage({
     return (
         <div className="container page-pad">
             {/* Pass everything to Client Wrapper */}
-            <div style={{ minHeight: '60vh' }}>
+            <div className="watch-player-wrapper" style={{ minHeight: '60vh' }}>
                 {currentEpisode ? (
                     <script
                         dangerouslySetInnerHTML={{
