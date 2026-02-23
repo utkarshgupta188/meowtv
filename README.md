@@ -1,371 +1,142 @@
 # MeowTV 🎬🐱
 
-**[Next.js + TypeScript Streaming Platform for Movies,TV Shows,Anime & Cartoons]**
+**A modern, mobile-first streaming platform for Movies, TV Shows, Anime & Cartoons**
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-4.9+-blue.svg)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-16.0.10-black.svg)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Stars](https://img.shields.io/github/stars/utkarshgupta/meowtv?style=flat)](https://github.com/utkarshgupta/meowtv/stargazers)
-[![Forks](https://img.shields.io/github/forks/utkarshgupta/meowtv?style=flat)](https://github.com/utkarshgupta/meowtv/network/members)
+[![Live](https://img.shields.io/badge/Live-meowtv.vercel.app-brightgreen)](https://meowtv.vercel.app)
 
 ---
 
 ## 🚀 Overview
 
-**MeowTV** is a modern streaming platform built with Next.js and TypeScript that provides access to anime, cartoons, and TV shows from multiple providers. It features:
+**MeowTV** is a Next.js streaming platform with support for multiple content providers. Stream anime, cartoons, and TV shows with a clean, Netflix-inspired UI that works beautifully on both desktop and mobile.
 
-✅ **Multi-provider support** - Switch between different streaming sources
-✅ **Responsive UI** - Works on all devices with a Netflix-like experience
-✅ **HLS streaming** - Smooth playback with hls.js
-✅ **TypeScript-first** - Full type safety throughout the application
-✅ **Modern architecture** - Server components, server actions, and optimized data fetching
-
-MeowTV is designed for developers who want to build a streaming application with a clean, maintainable codebase while providing users with a seamless viewing experience.
+🌐 **Live:** [meowtv.vercel.app](https://meowtv.vercel.app)
 
 ---
 
 ## ✨ Features
 
-### Core Functionality
-- **Multi-provider streaming** with automatic fallback
-- **Search functionality** across all available content
-- **Episode navigation** with season switching
-- **Responsive design** for all screen sizes
-- **Dark/light mode** support
-
-### Technical Highlights
-- **Server-side rendering** with Next.js 16
-- **Type-safe API** with comprehensive TypeScript interfaces
-- **Encrypted content handling** with custom decryption logic
-- **HLS proxy** for secure streaming
-- **Cookie-based provider switching**
-
-### Unique Aspects
-- **Provider abstraction layer** - Easily add new streaming sources
-- **Decryption utilities** - Handles encrypted content from various providers
-- **Modern UI components** - Clean, modern interface with smooth animations
-- **Optimized performance** - Lazy loading, efficient data fetching
+- 🔀 **Multi-provider support** — Switch between streaming sources on the fly
+- 📱 **Fully mobile-responsive** — Optimized for phones, tablets, and desktops
+- 🎬 **Vidstack video player** — HLS streaming with quality selection, subtitles & audio tracks
+- ⏩ **Seek controls** — Double-tap left/right to seek ±10s, or use the on-screen seek buttons
+- 🔍 **Search** — Full-text search across all available content
+- 🎞️ **Hero rotator** — Auto-rotating featured content with smooth transitions
+- 📺 **Episode navigation** — Season/episode switching with persistent state
+- ⚡ **Smart navbar** — Hides on scroll, reappears on scroll-up
+- 🌙 **Dark mode** — Glassmorphism design system throughout
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Category          | Technologies Used                          |
-|-------------------|------------------------------------------|
-| **Framework**     | Next.js 16 (App Router)                  |
-| **Language**      | TypeScript 5                             |
-| **Styling**       | CSS Modules, Tailwind-like variables     |
-| **Streaming**     | hls.js, Cheerio                          |
-| **State**         | React Context (client-side)               |
-| **Build**         | Vite (via Next.js)                       |
-| **Testing**       | (Coming soon)                            |
-
-**System Requirements:**
-- Node.js 18+
-- npm or yarn
-- Modern browser (Chrome, Firefox, Edge, Safari)
+| Category      | Technology                              |
+|---------------|----------------------------------------|
+| **Framework** | Next.js 15 (App Router, Server Actions) |
+| **Language**  | TypeScript 5                            |
+| **Player**    | Vidstack React + hls.js                 |
+| **Styling**   | Vanilla CSS (custom design system)      |
+| **Deployment**| Vercel                                  |
 
 ---
 
-## 📦 Installation
+## 📦 Quick Start
 
-### Prerequisites
+```bash
+# 1. Clone
+git clone https://github.com/utkarshgupta188/meowtv.git
+cd meowtv/web
 
-Before you begin, ensure you have:
-- Node.js 18+ installed ([Download here](https://nodejs.org/))
-- npm or yarn package manager
-- Git installed ([Download here](https://git-scm.com/))
+# 2. Install
+npm install
 
-### Quick Start
+# 3. Environment
+cp .env.example .env.local
+# Fill in your provider API keys
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/utkarshgupta/meowtv.git
-   cd meowtv
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
-
-3. **Set up environment variables:**
-   Create a `.env.local` file in the root directory with your configuration:
-   ```env
-   # Example environment variables
-   NEXT_PUBLIC_API_URL=https://api.example.com
-   CASTLE_SUFFIX=your_castle_suffix_here
-   ```
-
-4. **Run the development server:**
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
-
-5. **Open in your browser:**
-   Visit [http://localhost:3000](http://localhost:3000) to see your MeowTV application!
-
----
-
-## 🎯 Usage
-
-### Basic Usage
-
-MeowTV is designed to be used as a complete streaming platform. Here's how to get started:
-
-1. **Browse content:** Navigate through the home page sections
-2. **Search for content:** Use the search bar to find specific shows
-3. **Watch episodes:** Click on any content card to view details and play episodes
-4. **Switch providers:** Use the provider switcher to change streaming sources
-
-### Example: Fetching Content Programmatically
-
-```typescript
-// Example of how content is fetched in the application
-import { fetchHome, searchContent, fetchDetails } from '@/lib/api';
-
-// Fetch home page content
-const homeContent = await fetchHome(1);
-
-// Search for content
-const searchResults = await searchContent('Dragon Ball');
-
-// Fetch details for a specific content ID
-const contentDetails = await fetchDetails('content123');
-
-// Get streaming URL for an episode
-const streamUrl = await fetchStreamUrl('movie123', 'episode456');
+# 4. Dev server
+npm run dev
 ```
 
-### Advanced: Adding a New Provider
-
-To add support for a new streaming provider:
-
-1. **Create a new provider file** in `src/lib/providers/`
-2. **Implement the Provider interface** with your specific API calls
-3. **Add your provider to the registry** in `src/lib/api.ts`
-
-```typescript
-// Example new provider structure
-import { Provider } from './types';
-
-export const NewProvider: Provider = {
-    name: 'NewProviderName',
-
-    async fetchHome(page: number): Promise<HomePageRow[]> {
-        // Implement your home page fetching logic
-    },
-
-    async search(query: string): Promise<ContentItem[]> {
-        // Implement your search logic
-    },
-
-    async fetchDetails(id: string): Promise<MovieDetails | null> {
-        // Implement your details fetching logic
-    },
-
-    async fetchStreamUrl(
-        movieId: string,
-        episodeId: string,
-        languageId?: number | string
-    ): Promise<VideoResponse | null> {
-        // Implement your streaming URL logic
-    }
-};
-```
+Open [http://localhost:3000](http://localhost:3000) — done.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-meowtv/
-├── src/
-│   ├── app/                  # Next.js application routes
-│   │   ├── actions.ts        # Server actions
-│   │   ├── api/              # API routes
-│   │   │   ├── hls/          # HLS proxy endpoint
-│   │   │   └── proxy/        # Content proxy endpoint
-│   │   ├── layout.tsx        # Root layout
-│   │   ├── page.tsx          # Home page
-│   │   ├── search/           # Search page
-│   │   └── watch/            # Watch page
-│   ├── components/           # Reusable UI components
-│   │   ├── Card.tsx          # Content card component
-│   │   ├── ProviderSwitcher.tsx
-│   │   ├── SearchBar.tsx
-│   │   ├── SeasonSwitcher.tsx
-│   │   └── VideoPlayer.tsx   # HLS video player
-│   ├── lib/                  # Utility libraries
-│   │   ├── api.ts            # API facade
-│   │   ├── crypto.ts         # Encryption/decryption utilities
-│   │   └── providers/        # Provider implementations
-│   │       ├── castletv.ts    # CastleTV provider
-│   │       ├── cncverse.ts     # CNCVerse provider
-│   │       └── xon.ts         # Xon provider
-│   ├── styles/               # Global styles
-│   └── types/                # TypeScript types
-├── public/                   # Static assets
-├── .gitignore
-├── package.json
-├── tsconfig.json
-└── README.md
+web/src/
+├── app/
+│   ├── actions.ts          # Server actions (stream fetching)
+│   ├── api/
+│   │   ├── hls/            # HLS proxy
+│   │   └── proxy/          # Content proxy
+│   ├── layout.tsx           # Root layout + navbar + footer
+│   ├── page.tsx             # Home page
+│   ├── search/              # Search results
+│   ├── watch/[id]/          # Watch page
+│   └── globals.css          # Global styles + design system
+├── components/
+│   ├── VideoPlayer.tsx      # Vidstack player + seek overlay + quality menu
+│   ├── WatchClient.tsx      # Client wrapper for watch page
+│   ├── SmartNavbar.tsx      # Scroll-aware navbar
+│   ├── HeroRotator.tsx      # Featured content rotator
+│   ├── Card.tsx             # Content card
+│   ├── SearchBar.tsx        # Search input
+│   ├── ProviderSwitcher.tsx # Provider switcher dropdown
+│   └── SeasonSwitcher.tsx   # Season/episode selector
+└── lib/
+    ├── api.ts               # Provider facade
+    └── providers/           # Provider implementations
+        ├── castletv.ts
+        ├── xon.ts
+        └── ...
 ```
 
 ---
 
-## 🔧 Configuration
+## 🔧 Adding a New Provider
 
-### Environment Variables
-
-Create a `.env.local` file in your project root with these variables:
-
-```env
-# Next.js configuration
-NEXT_PUBLIC_API_URL=https://api.example.com
-
-# Provider-specific configuration
-CASTLE_SUFFIX=your_castle_suffix_here
-```
-
-### Customization Options
-
-1. **Change the theme:** Modify the CSS variables in `globals.css`
-2. **Add new providers:** Implement new provider files in `src/lib/providers/`
-3. **Adjust streaming settings:** Modify the HLS configuration in `VideoPlayer.tsx`
-
-### Provider Configuration
-
-Each provider has its own configuration. For example, the CastleTV provider uses:
+1. Create `src/lib/providers/myprovider.ts`
+2. Implement the `Provider` interface:
 
 ```typescript
-// In castletv.ts
-const MAIN_URL = 'https://api.hlowb.com';
-const API_KEY = process.env.CASTLE_API_KEY || 'default_key';
+import { Provider } from './types';
+
+export const MyProvider: Provider = {
+    name: 'MyProvider',
+    async fetchHome(page) { /* ... */ },
+    async search(query) { /* ... */ },
+    async fetchDetails(id) { /* ... */ },
+    async fetchStream(movieId, episodeId, languageId) { /* ... */ },
+};
 ```
 
----
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Here's how you can help:
-
-### How to Contribute
-
-1. **Fork the repository** and create your branch from `main`
-2. **Write tests** for your changes (we're working on adding test coverage)
-3. **Follow the coding style** (TypeScript, consistent formatting)
-4. **Submit a pull request** with a clear description of your changes
-
-### Development Setup
-
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Start the development server: `npm run dev`
-4. Make your changes and commit them
-
-### Code Style Guidelines
-
-- Use **TypeScript** for all new code
-- Follow **Next.js best practices** for server components
-- Keep **components small and focused**
-- Write **clear, concise commit messages**
-- Add **JSDoc comments** for public APIs
-
-### Pull Request Process
-
-1. Ensure your code passes all tests (we're adding tests!)
-2. Update the documentation if needed
-3. Create a pull request targeting the `main` branch
-4. Include a clear description of your changes
-
----
-
-## 📝 License
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👥 Authors & Contributors
-
-**Maintainer:**
-- [Utkarsh Gupta](https://github.com/utkarshgupta188)
-
-**Special Thanks:**
-- All contributors who have helped improve MeowTV
-- The open-source community for inspiration and tools
-
----
-
-## 🐛 Issues & Support
-
-### Reporting Issues
-
-If you encounter a problem or have a feature request:
-
-1. Search the [GitHub Issues](https://github.com/utkarshgupta/meowtv/issues) to see if it's already reported
-2. If not, open a new issue with:
-   - A clear description of the problem
-   - Steps to reproduce
-   - Your environment (Node.js version, browser, etc.)
-   - Any relevant code snippets
-
-### Getting Help
-
-- **Discussions:** Join our [GitHub Discussions](https://github.com/utkarshgupta/meowtv/discussions)
-- **Support:** For urgent issues, open a GitHub issue with "urgent" in the title
-
-### FAQ
-
-**Q: Can I use MeowTV for commercial purposes?**
-A: Yes, but you must comply with the [MIT License](LICENSE) terms.
-
-**Q: How do I add support for a new streaming provider?**
-A: Implement the `Provider` interface in `src/lib/providers/` and add it to the registry in `src/lib/api.ts`.
-
-**Q: Why is my video not playing?**
-A: Check the browser console for errors. Common issues include:
-- Missing cookies for the provider
-- Incorrect streaming URL
-- CORS restrictions
+3. Register it in `src/lib/api.ts`
 
 ---
 
 ## 🗺️ Roadmap
 
-### Planned Features
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| **Provider Management** | ⚠️ In Progress | Better provider configuration UI |
-| **User Accounts** | 🚧 Planning | Watch history and personalization |
-| **Subtitle Support** | 🚧 Planning | Better subtitle handling |
-| **Mobile App** | 🌱 Idea | Cross-platform mobile application |
-| **Better Error Handling** | 🚧 Planning | More robust error recovery |
-| **Analytics** | 🌱 Idea | Viewing statistics and trends |
-
-### Known Issues
-
-- **Provider-specific decryption** can be complex to implement
-- **Mobile responsiveness** needs additional testing
-- **Some providers** may require additional authentication
-
-### Future Improvements
-
-- Add **more providers** to the ecosystem
-- Implement **better caching** strategies
-- Add **accessibility features** for better UX
-- Create **documentation website** for contributors
+| Feature | Status |
+|---------|--------|
+| Multi-provider support | ✅ Done |
+| Mobile responsiveness | ✅ Done |
+| Vidstack player + quality selection | ✅ Done |
+| Double-tap seek + seek buttons | ✅ Done |
+| Subtitle support | ✅ Done |
+| User accounts / watch history | 🚧 Planned |
+| More providers | 🔄 Ongoing |
 
 ---
 
-## 🎉 Get Started Today!
+## 📝 License
 
-Join the MeowTV community and help build the future of streaming!
+MIT — see [LICENSE](LICENSE).
 
-🐱 **MeowTV - Where every stream is a purr-fect experience!** 🐱
+---
+
+Made with 💚 by [Utkarsh Gupta](https://github.com/utkarshgupta188)
