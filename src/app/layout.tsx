@@ -40,37 +40,19 @@ export default function RootLayout({
             {children}
           </main>
 
-          <footer className="glass-dark" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '24px 24px 16px', position: 'relative', zIndex: 10 }}>
-            <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div className="logo" style={{ marginBottom: '8px' }}>
-                  <span className="material-symbols-outlined logo-mark" style={{ fontSize: '24px' }}>movie_filter</span>
-                  <span className="logo-type" style={{ fontSize: '1.25rem' }}>Meow<span>TV</span></span>
-                </div>
-                <p style={{ color: '#64748b', fontSize: '0.875rem' }}>Elevating your streaming experience with high-fidelity visuals and curated feline content from across the universe.</p>
-                <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '16px' }}>Made With 💚 By Utkarsh Gupta | <a href="https://github.com/utkarshgupta188" target="_blank" rel="noopener noreferrer" style={{ color: '#ec13a4' }}>GitHub</a></p>
+          <footer className="glass-dark" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '14px 24px', position: 'relative', zIndex: 10 }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+              <div className="logo" style={{ fontSize: '1rem' }}>
+                <span className="material-symbols-outlined logo-mark" style={{ fontSize: '20px' }}>movie_filter</span>
+                <span className="logo-type" style={{ fontSize: '1rem' }}>Meow<span>TV</span></span>
               </div>
-
-              <div>
-                <h3 style={{ color: '#fff', fontWeight: 'bold', marginBottom: '16px' }}>MeowTV</h3>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.875rem', color: '#64748b' }}>
-                  <li><Link href="/dmca">DMCA</Link></li>
-                  <li><a href="https://github.com/utkarshgupta188" target="_blank" rel="noopener noreferrer">GitHub</a></li>
-                </ul>
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'center', fontSize: '0.8rem', color: '#64748b' }}>
+                <Link href="/dmca" style={{ color: '#64748b' }}>DMCA</Link>
+                <a href="https://github.com/utkarshgupta188" target="_blank" rel="noopener noreferrer" style={{ color: '#64748b' }}>GitHub</a>
               </div>
-
-              <div>
-                <h3 style={{ color: '#fff', fontWeight: 'bold', marginBottom: '16px' }}>Legal</h3>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.875rem', color: '#64748b' }}>
-                  <li><Link href="/">Terms of Service</Link></li>
-                  <li><Link href="/">Privacy Policy</Link></li>
-                </ul>
-              </div>
-            </div>
-
-            <div style={{ maxWidth: '1400px', margin: '24px auto 0', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#475569' }}>
-              <p>© 2026 MeowTV Media Group. All rights reserved.</p>
-              <p style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>This site does not store any files on our server.</p>
+              <p style={{ color: '#475569', fontSize: '0.75rem', margin: 0 }}>
+                © 2026 MeowTV · Made with 💚 by <a href="https://github.com/utkarshgupta188" target="_blank" rel="noopener noreferrer" style={{ color: '#ec13a4' }}>Utkarsh Gupta</a> · Does not store files on server
+              </p>
             </div>
           </footer>
         </div>
