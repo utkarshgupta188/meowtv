@@ -1,0 +1,11 @@
+src/components/VideoPlayer.tsx(8,5): error TS2724: '"@vidstack/react"' has no exported member named 'MediaProvider'. Did you mean 'useMediaProvider'?
+src/components/VideoPlayer.tsx(9,5): error TS2305: Module '"@vidstack/react"' has no exported member 'Track'.
+src/components/VideoPlayer.tsx(10,5): error TS2305: Module '"@vidstack/react"' has no exported member 'isHLSProvider'.
+src/components/VideoPlayer.tsx(11,5): error TS2724: '"@vidstack/react"' has no exported member named 'useMediaState'. Did you mean 'useMediaStore'?
+src/components/VideoPlayer.tsx(12,10): error TS2305: Module '"@vidstack/react"' has no exported member 'MediaPlayerInstance'.
+src/components/VideoPlayer.tsx(13,10): error TS2305: Module '"@vidstack/react"' has no exported member 'MediaProviderAdapter'.
+src/components/VideoPlayer.tsx(15,56): error TS2307: Cannot find module '@vidstack/react/player/layouts/default' or its corresponding type declarations.
+src/components/VideoPlayer.tsx(283,37): error TS7006: Parameter 'xhr' implicitly has an 'any' type.
+src/components/VideoPlayer.tsx(293,39): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/VideoPlayer.tsx(293,46): error TS7006: Parameter 'data' implicitly has an 'any' type.
+src/components/VideoPlayer.tsx(348,27): error TS7006: Parameter 'err' implicitly has an 'any' type.

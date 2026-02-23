@@ -7,25 +7,43 @@ import ProviderSwitcher from '@/components/ProviderSwitcher';
 
 export default function SmartNavbar() {
     const [isVisible, setIsVisible] = useState(true);
-    const [lastScrollY, setLastScrollY] = useState(0);
+    const [isManuallyHidden, setIsManuallyHidden] = useState(false);
+    const lastScrollYRef = React.useRef(0);
 
     useEffect(() => {
         const handleScroll = () => {
+            if (isManuallyHidden) return; // Do not overwrite manual hide state
             const currentScrollY = window.scrollY;
 
             // Hide only if we're scrolling down and past the very top
-            if (currentScrollY > 50 && currentScrollY > lastScrollY) {
+            if (currentScrollY > 50 && currentScrollY > lastScrollYRef.current) {
                 setIsVisible(false);
             } else {
                 setIsVisible(true);
             }
 
-            setLastScrollY(currentScrollY);
+            lastScrollYRef.current = currentScrollY;
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [lastScrollY]);
+    }, [isManuallyHidden]);
+
+    useEffect(() => {
+        const handleManualToggle = (e: Event) => {
+            const customEvent = e as CustomEvent<{ hidden: boolean }>;
+            const hidden = customEvent.detail.hidden;
+            setIsManuallyHidden(hidden);
+            if (hidden) {
+                setIsVisible(false);
+            } else {
+                setIsVisible(true);
+            }
+        };
+
+        window.addEventListener('manualNavToggle', handleManualToggle);
+        return () => window.removeEventListener('manualNavToggle', handleManualToggle);
+    }, []);
 
     return (
         <header

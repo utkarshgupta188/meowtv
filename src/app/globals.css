@@ -1011,6 +1011,111 @@ select:focus-visible {
   text-align: center;
 }
 
+/* Custom quality submenu injected into Vidstack settings panel */
+
+/* Main "Quality" row button (shown in root settings panel) */
+.vds-quality-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 14px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  cursor: pointer;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  margin-top: 4px;
+  gap: 8px;
+  transition: background 0.12s;
+}
+
+.vds-quality-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.vds-quality-menu-label {
+  flex: 1;
+  text-align: left;
+}
+
+.vds-quality-menu-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Sub-panel (shown when quality row is clicked) */
+.vds-quality-submenu {
+  padding-bottom: 4px;
+}
+
+.vds-quality-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background 0.12s;
+}
+
+.vds-quality-back-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.vds-quality-options {
+  display: flex;
+  flex-direction: column;
+}
+
+.vds-quality-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.vds-quality-option:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.vds-quality-option:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.vds-quality-option--active {
+  color: #fff;
+  font-weight: 600;
+}
+
+.vds-quality-check {
+  width: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary, #ec13a4);
+  flex-shrink: 0;
+}
+
 .details-container {
   padding: 18px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)) var(--surface-strong);
@@ -1305,8 +1410,9 @@ select:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #27272a;
+  /* Solid dark background */
+  border: 1px solid #3f3f46;
   color: #fff;
   padding: 8px 16px;
   border-radius: 9999px;
@@ -1317,7 +1423,8 @@ select:focus-visible {
 }
 
 .provider-dropdown-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: #3f3f46;
+  /* Lighter on hover */
 }
 
 .provider-dropdown-btn svg {
@@ -1331,7 +1438,7 @@ select:focus-visible {
   top: calc(100% + 8px);
   right: 0;
   min-width: 160px;
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -1341,8 +1448,11 @@ select:focus-visible {
   transform: scale(0.95) translateY(-10px);
   transform-origin: top right;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  /* Standard dark shadow */
+  background-color: #18181b;
+  /* Solid black/dark background */
+  border: 1px solid #3f3f46;
 }
 
 .provider-dropdown-menu.open {
@@ -1366,13 +1476,14 @@ select:focus-visible {
 }
 
 .provider-dropdown-item:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: #27272a;
   color: #fff;
   transform: translateX(4px);
 }
 
 .provider-dropdown-item.active {
-  color: var(--primary);
+  color: #fff;
   font-weight: 600;
-  background-color: rgba(236, 19, 164, 0.1);
+  background-color: #3f3f46;
+  /* Grey active indicator instead of pink */
 }

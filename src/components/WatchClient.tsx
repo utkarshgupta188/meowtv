@@ -71,6 +71,8 @@ export default function WatchClient({
         }
     }, [providerName, movieId, episodeId, languageId, initialVideoData]);
 
+
+
     if (loading) {
         return (
             <div className="player-container player-shell player-loading center">
@@ -89,17 +91,19 @@ export default function WatchClient({
     }
 
     return (
-        <VideoPlayer
-            key={episodeId}
-            initialUrl={videoData.videoUrl}
-            poster={poster}
-            movieId={movieId}
-            episodeId={episodeId}
-            languageId={languageId}
-            subtitles={videoData.subtitles || []}
-            qualities={videoData.qualities || []}
-            audioTracks={props.audioTracks} // Passed from page.tsx (episode tracks)
-            showOpenDownload={props.showOpenDownload}
-        />
+        <div style={{ position: 'relative' }}>
+            <VideoPlayer
+                key={episodeId}
+                initialUrl={videoData.videoUrl}
+                poster={poster}
+                movieId={movieId}
+                episodeId={episodeId}
+                languageId={languageId}
+                subtitles={videoData.subtitles || []}
+                qualities={videoData.qualities || []}
+                audioTracks={props.audioTracks} // Passed from page.tsx (episode tracks)
+                showOpenDownload={props.showOpenDownload}
+            />
+        </div>
     );
 }

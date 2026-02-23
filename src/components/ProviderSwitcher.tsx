@@ -42,7 +42,7 @@ export default function ProviderSwitcher() {
         <div className="provider-dropdown" ref={dropdownRef}>
             <button
                 type="button"
-                className="provider-dropdown-btn glass"
+                className="provider-dropdown-btn"
                 onClick={() => setIsOpen(!isOpen)}
                 aria-expanded={isOpen}
             >
@@ -61,7 +61,7 @@ export default function ProviderSwitcher() {
                 </svg>
             </button>
 
-            <div className={`provider-dropdown-menu glass-dark ${isOpen ? 'open' : ''}`}>
+            <div className={`provider-dropdown-menu ${isOpen ? 'open' : ''}`}>
                 {PROVIDERS.map((p) => (
                     <button
                         key={p}
