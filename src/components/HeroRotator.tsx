@@ -86,27 +86,35 @@ export default function HeroRotator({
 
   return (
     <>
-      <div className="hero-backdrop" style={{ backgroundImage: `url(${backdrop})` }} />
-      <div className="hero-overlay" />
+      <div className="absolute inset-0 w-full h-full">
+        <img src={backdrop} className="hero-backdrop" alt={current.title} />
+        <div className="hero-gradient"></div>
+      </div>
 
-      <div className="container hero-content">
-        <h1 className="hero-title">{current.title}</h1>
-        <div className="hero-meta">
-          {current.year ? <span>{current.year}</span> : null}
-          {typeof current.score === 'number' ? (
-            <span>{current.year ? ' • ' : ''}{current.score}</span>
-          ) : null}
-        </div>
-        {current.description ? (
-          <p className="hero-description">{current.description}</p>
-        ) : null}
-        <div className="hero-actions">
-          <Link href={`/watch/${encodeURIComponent(String(current.id))}`} className="btn btn-primary">
-            Play
-          </Link>
-          <Link href={`/watch/${encodeURIComponent(String(current.id))}`} className="btn btn-secondary">
-            More Info
-          </Link>
+      <div className="hero-content">
+        <div>
+          <div className="hero-meta">
+            <span className="hero-score-wrapper">
+              <span className="material-symbols-outlined text-sm text-yellow-500 fill-1">star</span>
+              {current.score ? `${current.score} Rating` : '9.8 Rating'}
+              {current.year ? ` • ${current.year}` : null}
+            </span>
+          </div>
+
+          <h1 className="hero-title">{current.title}</h1>
+
+          <p className="hero-description">
+            {current.description || 'In a universe of cosmic mystery, one feline adventurer must reclaim the lost throne of Orion. A visual masterpiece spanning across seven star systems.'}
+          </p>
+
+          <div className="hero-actions">
+            <Link href={`/watch/${encodeURIComponent(String(current.id))}`} className="btn btn-primary" style={{ gap: '8px' }}>
+              <span className="material-symbols-outlined fill-1" style={{ fontSize: '1.25rem' }}>play_arrow</span> Play Now
+            </Link>
+            <Link href={`/watch/${encodeURIComponent(String(current.id))}`} className="btn btn-secondary" style={{ gap: '8px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>info</span> More Info
+            </Link>
+          </div>
         </div>
       </div>
 

@@ -12,20 +12,27 @@ export default function Card({ id, title, image }: CardProps) {
     const safeTitle = title?.trim();
 
     return (
-        <Link
-            href={`/watch/${encodeURIComponent(String(id))}`}
-            className="card"
-            aria-label={safeTitle || 'Open'}
-        >
-            <img src={imageUrl} alt={title} loading="lazy" />
-            <div className="card-overlay" aria-hidden="true">
-                <span className="card-chip">Play</span>
-            </div>
+        <div className="group cursor-pointer scroll-card-wrapper">
+            <Link
+                href={`/watch/${encodeURIComponent(String(id))}`}
+                className="card"
+                aria-label={safeTitle || 'Open'}
+                style={{ display: 'block' }}
+            >
+                <img src={imageUrl} alt={title} loading="lazy" />
+
+                {/* Overlay with play button */}
+                <div className="card-overlay" aria-hidden="true">
+                    <div className="card-overlay-btn">
+                        <span className="material-symbols-outlined text-sm">play_arrow</span> Play
+                    </div>
+                </div>
+            </Link>
             {safeTitle ? (
                 <div className="card-info">
                     <div className="card-title">{safeTitle}</div>
                 </div>
             ) : null}
-        </Link>
+        </div>
     );
 }

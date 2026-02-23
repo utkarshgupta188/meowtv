@@ -77,11 +77,11 @@ export default async function Home() {
   return (
     <>
       {heroItems.length > 0 ? (
-        <section className="hero">
+        <section className="hero animate-fade-in">
           <HeroRotator items={heroItems} intervalMs={5000} />
         </section>
       ) : featured && featured.backgroundImage ? (
-        <section className="hero">
+        <section className="hero animate-fade-in">
           <HeroRotator
             items={[{
               id: featured.id,
@@ -106,7 +106,7 @@ export default async function Home() {
         ) : (
           rows.map((row, idx) => (
             row.contents && row.contents.length > 0 && (
-              <section key={`${row.name}-${idx}`} className="section">
+              <section key={`${row.name}-${idx}`} className="section animate-fade-in">
                 <h2 className="section-header">{row.name}</h2>
                 <div className="horizontal-scroll">
                   {row.contents.map((content, cIdx) => (
