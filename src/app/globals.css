@@ -649,15 +649,19 @@ select:focus-visible {
 
   .nav-left {
     gap: 12px;
-    flex: 1;
-    width: auto;
-    /* override old width: 100% */
+    width: 100%;
+    /* Force logo to its own row */
+    flex: none;
+    justify-content: center;
+    /* Center logo on top row */
   }
 
   .nav-right {
     width: 100%;
-    justify-content: stretch;
-    gap: 0;
+    justify-content: space-between;
+    /* Space out search bar and provider selector */
+    gap: 8px;
+    /* Small gap between search and provider */
   }
 
   .nav-search-row {
@@ -665,11 +669,9 @@ select:focus-visible {
     max-width: 100%;
   }
 
-  /* Make nav-links text smaller */
-  .nav-links a.btn {
-    padding: 0 10px;
-    font-size: 0.8rem;
-    height: 34px;
+  /* Hide Discover and Random links on mobile */
+  .nav-links {
+    display: none !important;
   }
 
   /* Provider button compact */
@@ -1805,7 +1807,7 @@ select:focus-visible {
 
   /* Remove rounded corners on small screens - full width looks better */
   .player-container {
-    border-radius: 0;
+    border-radius: 4px;
     border-left: none;
     border-right: none;
     margin-bottom: 0;
@@ -1817,10 +1819,10 @@ select:focus-visible {
     min-height: unset;
   }
 
-  /* Watch page: remove horizontal padding so player is edge-to-edge */
+  /* Watch page: keep a tiny 3px gap so player isn't fully edge-to-edge */
   .page-shell .container.page-pad {
-    padding-left: 0;
-    padding-right: 0;
+    padding-left: 3px;
+    padding-right: 3px;
   }
 
   /* But keep padding for the details section */
