@@ -64,7 +64,10 @@ function SeekOverlay({ playerRef }: { playerRef: React.RefObject<MediaPlayerInst
         <div
             style={{
                 position: 'absolute',
-                inset: 0,
+                top: 44,    /* leave room for Vidstack top bar (CC, settings) */
+                bottom: 52, /* leave room for Vidstack bottom bar (progress, fullscreen) */
+                left: 0,
+                right: 0,
                 zIndex: 10,
                 display: 'flex',
                 pointerEvents: 'none',

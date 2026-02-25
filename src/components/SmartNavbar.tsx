@@ -59,7 +59,7 @@ export default function SmartNavbar() {
                         <span className="material-symbols-outlined logo-mark">movie_filter</span>
                         <span className="logo-type">Meow<span>TV</span></span>
                     </Link>
-                    <nav style={{ display: 'flex', gap: '12px', alignItems: 'center', marginLeft: '24px' }} className="nav-links">
+                    <nav className="nav-links">
                         <Link href="/discover" className="btn btn-secondary" style={{ height: '38px', padding: '0 16px', fontSize: '0.875rem', gap: '6px', borderRadius: '10px' }}>
                             <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>explore</span> Discover
                         </Link>
