@@ -59,12 +59,8 @@ async function fetchJson<T>(url: string, timeoutMs: number = 8_000, nextConfig?:
     const t = setTimeout(() => controller.abort(), timeoutMs);
     try {
         // Use proxy to bypass 403 blocking (Cloudflare/Geoblock)
-        let proxyUrl = getSimpleProxyUrl(url);
-
-        // On Server: Fetch directly (bypass proxy) to ensure Auth headers work and avoid relative URL issues
-        if (typeof window === 'undefined') {
-            proxyUrl = url;
-        }
+        // User requested to remove proxy since it is using a bearer token and proxy may strip headers.
+        let proxyUrl = url;
 
         const token = await fetchKartoonsToken();
         const headers: Record<string, string> = {
@@ -141,8 +137,8 @@ export const MeowToonProvider: Provider = {
                 // Cache home page for 1 hour
                 const cacheConfig = { next: { revalidate: 3600 } };
                 const [showsData, moviesData, popShowsData, popMoviesData] = await Promise.all([
-                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/shows/?page=1&limit=20`, 8000, cacheConfig),
-                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/movies/?page=1&limit=20`, 8000, cacheConfig),
+                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/shows?page=1&limit=20`, 8000, cacheConfig),
+                    fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/movies?page=1&limit=20`, 8000, cacheConfig),
                     fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/popularity/shows?limit=15&period=day`, 8000, cacheConfig),
                     fetchJson<KartoonsListResponse<any[]>>(`${MAIN_URL}/api/popularity/movies?limit=15&period=day`, 8000, cacheConfig)
                 ]);

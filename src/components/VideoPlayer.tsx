@@ -478,6 +478,8 @@ export default function VideoPlayer({
                 onProviderChange={onProviderChange}
                 onProviderSetup={onProviderSetup}
                 onError={(err) => setError(err.message)}
+                onPlaying={() => setError(null)}
+                onCanPlay={() => setError(null)}
             >
                 <MediaProvider>
                     {subtitles.map((sub, i) => (
@@ -514,15 +516,7 @@ export default function VideoPlayer({
                     }}
                 />
 
-                {error && (
-                    <div className="player-center-badge">
-                        <p className="title">{error}</p>
-                        <p className="hint">
-                            The browser cannot play this video. <br />
-                            Please use the <b>Open / Download</b> button in the top-left to play it externally (e.g. VLC).
-                        </p>
-                    </div>
-                )}
+                {/* Error overlay removed per user request */}
 
                 {isLoading && (
                     <div className="player-center-badge">
