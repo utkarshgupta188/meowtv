@@ -1,7 +1,7 @@
 import type { ContentItem, Details, EpisodeItem, HomeRow, StreamResponse } from '../types';
 
 // Ported from existing Kartoons provider logic.
-const MAIN_URL = 'https://api.kartoons.fun';
+const MAIN_URL = 'https://api.kartoons.me';
 
 type KartoonsListResponse<T> = { data?: T };
 
@@ -47,8 +47,8 @@ async function fetchJson<T>(url: string): Promise<T> {
     const token = await fetchKartoonsToken();
     const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': 'https://kartoons.fun/',
-      'Origin': 'https://kartoons.fun',
+      'Referer': 'https://kartoons.me/',
+      'Origin': 'https://kartoons.me',
     };
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;

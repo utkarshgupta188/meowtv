@@ -3,7 +3,7 @@ import { fetchHome as fetchXonHome, search as searchXon, fetchDetails as fetchXo
 import { getSimpleProxyUrl } from '../proxy-config';
 
 // Built from the Android provider in `Kartoons/`.
-const MAIN_URL = 'https://api.kartoons.fun';
+const MAIN_URL = 'https://api.kartoons.me';
 const DECRYPT_BASE = 'https://kartoondecrypt.onrender.com';
 
 type KartoonsListResponse<T> = { data?: T };
@@ -66,8 +66,8 @@ async function fetchJson<T>(url: string, timeoutMs: number = 8_000, nextConfig?:
         const headers: Record<string, string> = {
             ...nextConfig?.headers as Record<string, string>,
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
-            'Referer': 'https://kartoons.fun/',
-            'Origin': 'https://kartoons.fun',
+            'Referer': 'https://kartoons.me/',
+            'Origin': 'https://kartoons.me',
         };
 
         if (token) {
