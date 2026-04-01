@@ -13,16 +13,19 @@ export default function SmartNavbar() {
     useEffect(() => {
         const handleScroll = () => {
             if (isManuallyHidden) return; // Do not overwrite manual hide state
-            const currentScrollY = window.scrollY;
+            
+            requestAnimationFrame(() => {
+                const currentScrollY = window.scrollY;
 
-            // Hide only if we're scrolling down and past the very top
-            if (currentScrollY > 50 && currentScrollY > lastScrollYRef.current) {
-                setIsVisible(false);
-            } else {
-                setIsVisible(true);
-            }
+                // Hide only if we're scrolling down and past the very top
+                if (currentScrollY > 50 && currentScrollY > lastScrollYRef.current) {
+                    setIsVisible(false);
+                } else {
+                    setIsVisible(true);
+                }
 
-            lastScrollYRef.current = currentScrollY;
+                lastScrollYRef.current = currentScrollY;
+            });
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });

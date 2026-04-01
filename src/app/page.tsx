@@ -30,9 +30,9 @@ export default async function Home() {
 
   // On each request, pick a random set of hero items and only rotate among those.
   // Only include items that have a full-size backdrop.
-  const TARGET_HERO_ITEMS = 10;
-  const MAX_CANDIDATE_FETCH = 90;
-  const BATCH_SIZE = 30;
+  const TARGET_HERO_ITEMS = 5;
+  const MAX_CANDIDATE_FETCH = 10;
+  const BATCH_SIZE = 10;
 
   const shuffledIds = [...candidateIds];
   shuffleInPlace(shuffledIds);

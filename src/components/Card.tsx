@@ -1,5 +1,5 @@
 import Link from 'next/link';
-
+import Image from 'next/image';
 interface CardProps {
     id: string | number;
     title: string;
@@ -19,7 +19,14 @@ export default function Card({ id, title, image }: CardProps) {
                 aria-label={safeTitle || 'Open'}
                 style={{ display: 'block' }}
             >
-                <img src={imageUrl} alt={title} loading="lazy" />
+                <Image 
+                    src={imageUrl} 
+                    alt={title || 'Cover'} 
+                    width={300} 
+                    height={450} 
+                    className="object-cover h-full w-full"
+                    unoptimized
+                />
 
                 {/* Overlay with play button */}
                 <div className="card-overlay" aria-hidden="true">
