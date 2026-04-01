@@ -95,6 +95,7 @@ export default function HeroRotator({
           fill 
           priority 
           sizes="100vw"
+          unoptimized
         />
         <div className="hero-gradient"></div>
       </div>
