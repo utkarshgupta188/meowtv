@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 export type HeroItem = {
@@ -88,14 +87,14 @@ export default function HeroRotator({
   return (
     <>
       <div className="absolute inset-0 w-full h-full">
-        <Image 
-          src={backdrop} 
-          className="hero-backdrop object-cover" 
-          alt={current.title} 
-          fill 
-          priority 
-          sizes="100vw"
-          unoptimized
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={backdrop}
+          className="hero-backdrop object-cover"
+          alt={current.title}
+          loading="eager"
+          decoding="async"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
         <div className="hero-gradient"></div>
       </div>

@@ -109,7 +109,7 @@ function parseContentId(raw: string): { type: 'movie' | 'series'; identifier: st
 export const MeowToonProvider: Provider = {
     name: 'MeowToon',
 
-    async fetchHome(page: number): Promise<HomePageRow[]> {
+    async fetchHome(page: number): Promise<Promise<HomePageRow[]>[]> {
         if (page < 1) page = 1;
         if (page > 1) return [];
 
@@ -165,10 +165,9 @@ export const MeowToonProvider: Provider = {
             }
         })();
 
-        // 3. Run safely in parallel
-        const [xonRows, kartoRows] = await Promise.all([xonTask, kartoonsTask]);
-
-        return [...kartoRows, ...xonRows];
+        // 3. Return Kartoons synchronously and Xon asynchronously
+        // Actually return both directly so UI can stream them
+        return [kartoonsTask, xonTask];
     },
 
     async search(query: string): Promise<ContentItem[]> {

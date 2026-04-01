@@ -69,7 +69,7 @@ function resolveProviderForId(id: string, fallbackName: string): { providerName:
 
 // Global Exported Functions (Facade)
 
-export async function fetchHome(page: number = 1): Promise<HomePageRow[]> {
+export async function fetchHome(page: number = 1): Promise<Promise<HomePageRow[]>[]> {
     const { provider } = await getProviderWithName();
     return provider.fetchHome(page);
 }
@@ -100,11 +100,14 @@ export async function fetchDetails(id: string, includeEpisodes: boolean = true):
                     sourceMovieId: `xon:${details.id}`,
                 }));
 
-                // If the ID was an episode and we have no episode list, synthesize a single episode entry.
+                // For movies (and episodes with no list), synthesize a single playable entry
+                // pointing back to the content's own ID so fetchStreamUrl can resolve it.
+                const isMovieId = rawId.startsWith('movie:');
                 const isEpisodeId = rawId.startsWith('episode:');
-                const synthEpisodes = isEpisodeId && episodes.length === 0
+                const needsSynth = (isMovieId || isEpisodeId) && episodes.length === 0;
+                const synthEpisodes = needsSynth
                     ? [{
-                        id,
+                        id,                          // e.g. "xon:movie:123" — matches what fetchStreamUrl expects
                         title: details.title,
                         number: 1,
                         season: 1,
@@ -120,6 +123,7 @@ export async function fetchDetails(id: string, includeEpisodes: boolean = true):
                     description: details.description,
                     coverImage: details.poster || '',
                     backgroundImage: details.backdrop || undefined,
+                    // For movies: only the synth entry; for shows: real episodes
                     episodes: episodes.length ? episodes : synthEpisodes,
                     seasons: undefined,
                     tags: undefined,

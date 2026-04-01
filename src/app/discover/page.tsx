@@ -5,7 +5,9 @@ import { ContentItem } from '@/lib/providers/types';
 export const dynamic = 'force-dynamic';
 
 export default async function DiscoverPage() {
-    const rows = await fetchHome();
+    const rowPromises = await fetchHome();
+    const rowsArrays = await Promise.all(rowPromises);
+    const rows = rowsArrays.flat();
 
     // Collect all unique items
     const allItemsMap = new Map<string, ContentItem>();

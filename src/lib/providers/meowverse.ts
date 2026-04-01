@@ -183,46 +183,49 @@ async function fetchAllPages(
 export const MeowVerseProvider: Provider = {
     name: 'MeowVerse',
 
-    async fetchHome(page: number): Promise<HomePageRow[]> {
+    async fetchHome(page: number): Promise<Promise<HomePageRow[]>[]> {
         if (page > 1) return [];
 
-        try {
-            const cookieValue = await bypass(STREAM_URL, true); // Proxied, net52.cc like Kotlin
-            const headers = {
-                ...HEADERS,
-                'Cookie': `t_hash_t=${cookieValue}; ott=nf; hd=on; user_token=233123f803cf02184bf6c67e149cdd50`
-            };
+        const fetchRows = async (): Promise<HomePageRow[]> => {
+            try {
+                const cookieValue = await bypass(STREAM_URL, true); // Proxied, net52.cc like Kotlin
+                const headers = {
+                    ...HEADERS,
+                    'Cookie': `t_hash_t=${cookieValue}; ott=nf; hd=on; user_token=233123f803cf02184bf6c67e149cdd50`
+                };
 
-            const res = await proxiedFetch(`${STREAM_URL}/home`, { headers });
-            const html = await res.text();
-            const $ = cheerio.load(html);
-            const rows: HomePageRow[] = [];
+                const res = await proxiedFetch(`${STREAM_URL}/home`, { headers });
+                const html = await res.text();
+                const $ = cheerio.load(html);
+                const rows: HomePageRow[] = [];
 
-            $('.lolomoRow').each((_, elem) => {
-                const name = $(elem).find('h2 > span > div').text().trim();
-                const contents: ContentItem[] = [];
+                $('.lolomoRow').each((_, elem) => {
+                    const name = $(elem).find('h2 > span > div').text().trim();
+                    const contents: ContentItem[] = [];
 
-                $(elem).find('img.lazy').each((_, img) => {
-                    const src = $(img).attr('data-src');
-                    const id = src?.split('/').pop()?.split('.')[0];
-                    if (id) {
-                        contents.push({
-                            title: '',
-                            coverImage: `https://imgcdn.kim/poster/v/${id}.jpg`,
-                            id: id,
-                            type: 'movie'
-                        });
-                    }
+                    $(elem).find('img.lazy').each((_, img) => {
+                        const src = $(img).attr('data-src');
+                        const id = src?.split('/').pop()?.split('.')[0];
+                        if (id) {
+                            contents.push({
+                                title: '',
+                                coverImage: `https://imgcdn.kim/poster/v/${id}.jpg`,
+                                id: id,
+                                type: 'movie'
+                            });
+                        }
+                    });
+
+                    if (contents.length > 0) rows.push({ name, contents });
                 });
 
-                if (contents.length > 0) rows.push({ name, contents });
-            });
+                return rows;
+            } catch (e) {
+                return [];
+            }
+        };
 
-            return rows;
-        } catch (e) {
-
-            return [];
-        }
+        return [fetchRows()];
     },
 
     async search(query: string): Promise<ContentItem[]> {

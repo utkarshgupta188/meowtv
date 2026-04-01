@@ -7,10 +7,12 @@ export default async function RandomPage() {
     let targetUrl = '/';
 
     try {
-        const rows = await fetchHome();
+        const rowPromises = await fetchHome();
+        const rowsArrays = await Promise.all(rowPromises);
+        const allRows = rowsArrays.flat();
         const candidateIds = Array.from(
             new Set(
-                rows
+                allRows
                     .flatMap((r) => r?.contents ?? [])
                     .map((c) => c?.id)
                     .filter((v): v is string => Boolean(v))

@@ -61,35 +61,41 @@ async function fetchDetailsWithKey(id: string, key: string): Promise<any | null>
 export const MeowTvProvider: Provider = {
     name: 'MeowTV',
 
-    async fetchHome(page: number): Promise<HomePageRow[]> {
-        const { key } = await getSecurityKey();
-        if (!key) return [];
-        const url = `${MAIN_URL}/film-api/v0.1/category/home?channel=IndiaA&clientType=1&lang=en-US&locationId=1001&mode=1&packageName=com.external.castle&page=${page}&size=17`;
+    async fetchHome(page: number): Promise<Promise<HomePageRow[]>[]> {
+        const fetchRows = async (): Promise<HomePageRow[]> => {
+            const { key } = await getSecurityKey();
+            if (!key) return [];
+            const url = `${MAIN_URL}/film-api/v0.1/category/home?channel=IndiaA&clientType=1&lang=en-US&locationId=1001&mode=1&packageName=com.external.castle&page=${page}&size=17`;
 
-        try {
-            const res = await fetch(url, { cache: 'no-store' });
-            const text = await res.text();
-            let encryptedData = text;
-            try { const json = JSON.parse(text); if (json.data) encryptedData = json.data; } catch { }
+            try {
+                const res = await fetch(url, { cache: 'no-store' });
+                const text = await res.text();
+                let encryptedData = text;
+                try { const json = JSON.parse(text); if (json.data) encryptedData = json.data; } catch { }
 
-            const decryptedJson = decryptData(encryptedData, key);
-            if (!decryptedJson) return [];
-            const data = parseJsonPreserveBigInt(decryptedJson).data;
-            if (!data.rows) return [];
+                const decryptedJson = decryptData(encryptedData, key);
+                if (!decryptedJson) return [];
+                const data = parseJsonPreserveBigInt(decryptedJson).data;
+                if (!data.rows) return [];
 
-            return data.rows.map((row: any) => ({
-                name: row.name,
-                contents: row.contents?.map((c: any) => ({
-                    title: c.title,
-                    coverImage: c.coverImage,
-                    id: c.redirectId?.toString(),
-                    type: (c.movieType === 1 || c.movieType === 3 || c.movieType === 5) ? 'series' : 'movie'
-                })) || []
-            })).filter((r: HomePageRow) => r.contents.length > 0);
-        } catch (e) {
-            console.error(e);
-            return [];
-        }
+                const rows = data.rows.map((row: any) => ({
+                    name: row.name,
+                    contents: row.contents?.map((c: any) => ({
+                        title: c.title,
+                        coverImage: c.coverImage,
+                        id: c.redirectId?.toString(),
+                        type: (c.movieType === 1 || c.movieType === 3 || c.movieType === 5) ? 'series' : 'movie'
+                    })) || []
+                })).filter((r: HomePageRow) => r.contents.length > 0);
+                
+                return rows;
+            } catch (e) {
+                console.error(e);
+                return [];
+            }
+        };
+
+        return [fetchRows()];
     },
 
     async search(query: string): Promise<ContentItem[]> {

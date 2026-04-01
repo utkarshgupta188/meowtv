@@ -1,8 +1,10 @@
 import { randomInt } from 'node:crypto';
+import { Suspense } from 'react';
 
 import { fetchDetails, fetchHome } from '@/lib/api';
 import Card from '@/components/Card';
 import HeroRotator from '@/components/HeroRotator';
+import { HomePageRow } from '@/lib/providers/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +16,57 @@ function shuffleInPlace<T>(arr: T[]): void {
 }
 
 export default async function Home() {
-  const rows = await fetchHome();
+  const rowPromises = await fetchHome();
+
+  return (
+    <>
+      <Suspense fallback={
+        <section className="hero" style={{ minHeight: '600px', backgroundColor: '#0f1115' }}>
+          {/* Simple skeleton for hero */}
+        </section>
+      }>
+        <HeroSectionLoader rowPromises={rowPromises} />
+      </Suspense>
+
+      <div className="container page-pad">
+        {rowPromises.length === 0 ? (
+          <div className="empty-state">
+            <h2>No content available.</h2>
+            <p>Please check your configuration or try again later.</p>
+          </div>
+        ) : (
+          rowPromises.map((promise, idx) => (
+            <Suspense
+              key={`row-suspense-${idx}`}
+              fallback={
+                <div style={{ padding: '2rem 1rem', display: 'flex', gap: '1rem', overflow: 'hidden' }}>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={`skel-${idx}-${i}`} className="card-skeleton" />
+                  ))}
+                </div>
+              }
+            >
+              <AsyncRowsLoader promise={promise} />
+            </Suspense>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+async function HeroSectionLoader({ rowPromises }: { rowPromises: Promise<HomePageRow[]>[] }) {
+  if (rowPromises.length === 0) return null;
+
+  // Wait for the first chunk of rows to load to pick hero items
+  let rows: HomePageRow[] = [];
+  try {
+    // Await the fastest resolving promise or just the first one. 
+    // we use the first one since it's typically the primary content (like Kartoons)
+    rows = await rowPromises[0];
+  } catch (err) {
+    console.warn("Failed to load first row promise for hero section", err);
+  }
 
   const featuredId = rows?.[0]?.contents?.[0]?.id;
   const featured = featuredId ? await fetchDetails(featuredId, false) : null;
@@ -28,8 +80,6 @@ export default async function Home() {
     )
   );
 
-  // On each request, pick a random set of hero items and only rotate among those.
-  // Only include items that have a full-size backdrop.
   const TARGET_HERO_ITEMS = 5;
   const MAX_CANDIDATE_FETCH = 10;
   const BATCH_SIZE = 10;
@@ -51,7 +101,6 @@ export default async function Home() {
   const maxToFetch = Math.min(shuffledIds.length, MAX_CANDIDATE_FETCH);
   for (let start = 0; start < maxToFetch && heroItems.length < TARGET_HERO_ITEMS; start += BATCH_SIZE) {
     const batchIds = shuffledIds.slice(start, start + BATCH_SIZE);
-    // Skip episode fetching for hero items - we only need metadata
     const batchDetails = await Promise.allSettled(batchIds.map((id) => fetchDetails(id, false)));
 
     for (const r of batchDetails) {
@@ -74,55 +123,66 @@ export default async function Home() {
     }
   }
 
+  if (heroItems.length > 0) {
+    return (
+      <section className="hero animate-fade-in">
+        <HeroRotator items={heroItems} intervalMs={5000} />
+      </section>
+    );
+  }
+
+  if (featured && featured.backgroundImage) {
+    return (
+      <section className="hero animate-fade-in">
+        <HeroRotator
+          items={[{
+            id: featured.id,
+            title: featured.title,
+            description: featured.description,
+            year: featured.year,
+            score: featured.score,
+            coverImage: featured.coverImage,
+            backgroundImage: featured.backgroundImage,
+          }]}
+          intervalMs={5000}
+        />
+      </section>
+    );
+  }
+
+  return null;
+}
+
+async function AsyncRowsLoader({ promise }: { promise: Promise<HomePageRow[]> }) {
+  let rows: HomePageRow[] = [];
+  try {
+    rows = await promise;
+  } catch (err) {
+    console.warn("Failed to load row promise", err);
+    return null;
+  }
+
+  if (!rows || rows.length === 0) return null;
+
   return (
     <>
-      {heroItems.length > 0 ? (
-        <section className="hero animate-fade-in">
-          <HeroRotator items={heroItems} intervalMs={5000} />
-        </section>
-      ) : featured && featured.backgroundImage ? (
-        <section className="hero animate-fade-in">
-          <HeroRotator
-            items={[{
-              id: featured.id,
-              title: featured.title,
-              description: featured.description,
-              year: featured.year,
-              score: featured.score,
-              coverImage: featured.coverImage,
-              backgroundImage: featured.backgroundImage,
-            }]}
-            intervalMs={5000}
-          />
-        </section>
-      ) : null}
-
-      <div className="container page-pad">
-        {rows.length === 0 ? (
-          <div className="empty-state">
-            <h2>No content loaded.</h2>
-            <p>Please check your configuration or try again later.</p>
-          </div>
-        ) : (
-          rows.map((row, idx) => (
-            row.contents && row.contents.length > 0 && (
-              <section key={`${row.name}-${idx}`} className="section animate-fade-in">
-                <h2 className="section-header">{row.name}</h2>
-                <div className="horizontal-scroll">
-                  {row.contents.map((content, cIdx) => (
-                    <Card
-                      key={`${content.id}-${cIdx}`}
-                      id={content.id}
-                      title={content.title!}
-                      image={content.coverImage!}
-                    />
-                  ))}
-                </div>
-              </section>
-            )
-          ))
-        )}
-      </div>
+      {rows.map((row, idx) => (
+        row.contents && row.contents.length > 0 && (
+          <section key={`async-${row.name}-${idx}`} className="section animate-fade-in">
+            <h2 className="section-header">{row.name}</h2>
+            <div className="horizontal-scroll">
+              {row.contents.map((content, cIdx) => (
+                <Card
+                  key={`${content.id}-${cIdx}`}
+                  id={content.id}
+                  title={content.title!}
+                  image={content.coverImage!}
+                />
+              ))}
+            </div>
+          </section>
+        )
+      ))}
     </>
   );
 }
