@@ -20,22 +20,13 @@ function normalizeId(id: any): string | null {
   return s.length ? s : null;
 }
 
-const TOKEN_URL = 'https://kartoon-api.vercel.app/api/key';
+// Environment-sourced token
 let cachedToken: string | null = null;
 
 async function fetchKartoonsToken(): Promise<string | null> {
-  if (cachedToken) return cachedToken;
-  try {
-    const res = await fetch(TOKEN_URL);
-    if (res.ok) {
-      const data = await res.json();
-      cachedToken = data.apiKey || null;
-      return cachedToken;
-    }
-  } catch (e) {
-    console.error('[Kartoons] Failed to fetch token:', e);
-  }
-  return null;
+  const envToken = process.env.MEOWTOON_KARTOON_TOKEN || process.env.KART_TOKEN;
+  if (envToken) return envToken;
+  return cachedToken;
 }
 
 async function fetchJson<T>(url: string): Promise<T> {

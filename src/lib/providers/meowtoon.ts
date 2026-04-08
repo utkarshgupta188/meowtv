@@ -35,22 +35,13 @@ function isAbortError(err: any): boolean {
     return name === 'AbortError' || code === 20;
 }
 
-const TOKEN_URL = 'https://kartoon-api.vercel.app/api/key';
+// Environment-sourced token
 let cachedToken: string | null = null;
 
 async function fetchKartoonsToken(): Promise<string | null> {
-    if (cachedToken) return cachedToken;
-    try {
-        const res = await fetch(TOKEN_URL);
-        if (res.ok) {
-            const data = await res.json();
-            cachedToken = data.apiKey || null;
-            return cachedToken;
-        }
-    } catch (e) {
-        console.error('[MeowToon] Failed to fetch Kartoons token:', e);
-    }
-    return null;
+    const envToken = process.env.MEOWTOON_KARTOON_TOKEN || process.env.KART_TOKEN;
+    if (envToken) return envToken;
+    return cachedToken;
 }
 
 async function fetchJson<T>(url: string, timeoutMs: number = 8_000, nextConfig?: RequestInit): Promise<T> {
