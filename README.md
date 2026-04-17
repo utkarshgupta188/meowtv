@@ -48,7 +48,7 @@
 ```bash
 # 1. Clone
 git clone https://github.com/utkarshgupta188/meowtv.git
-cd meowtv/web
+cd meowtv/web 
 
 # 2. Install
 npm install
