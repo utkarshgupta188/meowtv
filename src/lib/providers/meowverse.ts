@@ -6,7 +6,7 @@ const MAIN_URL = 'https://net22.cc';
 const STREAM_URL = 'https://net52.cc'; // Kotlin CloudStream mainUrl — used for /mobile/playlist.php
 
 const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 12; RMX2117 Build/SP1A.210812.016; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/147.0.7727.55 Mobile Safari/537.36 /OS.Gatu v3.0',
     'X-Requested-With': 'XMLHttpRequest',
 };
 
@@ -58,54 +58,73 @@ async function bypass(mainUrl: string, useProxy: boolean = false): Promise<strin
 
     // Return cached cookie if valid
     if (cachedCookie && Date.now() - timestamp < CACHE_DURATION) {
-
         return cachedCookie;
     }
 
+    const mobileUA = HEADERS['User-Agent'];
+    const fetchFn = useProxy ? proxiedFetch : fetch;
+
     try {
-        let verifyCheck: string;
+        // 1. GET mobile home to get addhash
+        const res = await fetchFn(`${mainUrl}/mobile/home?app=1`, {
+            headers: {
+                'User-Agent': mobileUA,
+                'X-Requested-With': 'app.netmirror.netmirrornew'
+            }
+        });
+        const html = await res.text();
+        const hashMatch = html.match(/data-addhash="([^"]+)"/);
+        if (!hashMatch) throw new Error('Could not find data-addhash');
+        const addhash = hashMatch[1];
+
+        // 2. GET userver to register the hash
+        const time = Math.floor(Date.now() / 1000);
+        await fetchFn(`https://userver.net52.cc/?jjoii=${addhash}&a=y&t=${time}`, {
+            headers: { 'User-Agent': mobileUA }
+        });
+
+        // 3. Wait and verify loop (up to 8 times with 10s delay)
         let retries = 0;
-        const maxRetries = 10;
-
-
-        // Keep POSTing until we get success response
-        while (retries < maxRetries) {
-            const fetchFn = useProxy ? proxiedFetch : fetch;
-
-            const res = await fetchFn(`${mainUrl}/tv/p.php`, {
-                method: 'POST',
-                headers: HEADERS
-            });
-
-            verifyCheck = await res.text();
-
-            // Check if Cloudflare challenge passed
-            if (verifyCheck.includes('"r":"n"')) {
-                // Extract t_hash_t cookie from response headers
-                const setCookie = useProxy
-                    ? (res.headers.get('x-proxied-set-cookie') || res.headers.get('set-cookie'))
-                    : res.headers.get('set-cookie');
-
-                if (setCookie) {
-                    const match = setCookie.match(/t_hash_t=([^;]+)/);
-                    if (match) {
-                        const cookieVal = match[1];
-                        if (useProxy) {
-                            cachedProxyCookie = cookieVal;
-                            cacheProxyTimestamp = Date.now();
-                        } else {
-                            cachedDirectCookie = cookieVal;
-                            cacheDirectTimestamp = Date.now();
+        while (retries < 8) {
+            // Wait 10 seconds (as seen in Kotlin delay(10000))
+            await new Promise(resolve => setTimeout(resolve, 10000));
+            
+            try {
+                const vRes = await fetchFn(`${mainUrl}/mobile/verify2.php`, {
+                    method: 'POST',
+                    headers: {
+                        'User-Agent': mobileUA,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `verify=${addhash}`
+                });
+                const verifyCheck = await vRes.text();
+                
+                if (verifyCheck.includes('"statusup":"All Done"')) {
+                    const setCookie = useProxy
+                        ? (vRes.headers.get('x-proxied-set-cookie') || vRes.headers.get('set-cookie'))
+                        : vRes.headers.get('set-cookie');
+                    
+                    if (setCookie) {
+                        const match = setCookie.match(/t_hash_t=([^;]+)/);
+                        if (match) {
+                            const cookieVal = match[1];
+                            if (useProxy) {
+                                cachedProxyCookie = cookieVal;
+                                cacheProxyTimestamp = Date.now();
+                            } else {
+                                cachedDirectCookie = cookieVal;
+                                cacheDirectTimestamp = Date.now();
+                            }
+                            return cookieVal;
                         }
-
-                        return cookieVal;
                     }
                 }
+            } catch (e) {
+                // Ignore transient fetch errors during verify loop
             }
-
             retries++;
-            // console.log(`[CNC Verse] Bypass attempt ${retries}/${maxRetries}...`);
-            await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         throw new Error('Bypass failed after max retries');
@@ -444,9 +463,29 @@ export const MeowVerseProvider: Provider = {
                 // Use audioParam as fallback
             }
 
-            // Use /mobile/playlist.php — matches the working Kotlin CloudStream extension
-            // (NetflixMirrorProvider.kt line 226: mainUrl = "https://net52.cc")
-            const url = `${STREAM_URL}/mobile/playlist.php?id=${episodeId}&t=${encodeURIComponent(contentTitle)}&tm=${time}`;
+            // Step 1: Get Token from play.php (matches Kotlin getVideoToken)
+            let token = '';
+            try {
+                const playRes = await proxiedFetch(`${MAIN_URL}/play.php`, {
+                    method: 'POST',
+                    headers: {
+                        ...HEADERS,
+                        'Cookie': streamCookies,
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Referer': `${STREAM_URL}/home`,
+                        'Host': 'net22.cc'
+                    },
+                    body: `id=${episodeId}`
+                });
+                const playData = await playRes.json();
+                if (playData && playData.h) {
+                    const h = playData.h;
+                    token = h.includes('in=') ? h.split('in=')[1] : h;
+                }
+            } catch (e) { /* ignore and try without token */ }
+
+            // Use /playlist.php instead of /mobile/playlist.php — matches Kotlin
+            const url = `${STREAM_URL}/playlist.php?id=${episodeId}&t=${encodeURIComponent(contentTitle)}&tm=${time}&h=${token}`;
             const playlistBaseUrl = STREAM_URL;
             const playlistReferer = `${STREAM_URL}/`;
 
@@ -490,7 +529,7 @@ export const MeowVerseProvider: Provider = {
                     const proxyUrl = getHlsProxyUrl(m3u8Url, {
                         referer: playlistReferer,
                         cookie: streamCookies,
-                        ua: HEADERS['User-Agent']
+                        ua: 'Mozilla/5.0 (Android) ExoPlayer' // Matches Kotlin extension stream UA
                     });
 
                     return {

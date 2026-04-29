@@ -6,8 +6,9 @@
 
 const MAIN_URL = 'https://net22.cc';
 const NEW_URL = 'https://net52.cc';
+const MOBILE_UA = 'Mozilla/5.0 (Linux; Android 12; RMX2117 Build/SP1A.210812.016; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/147.0.7727.55 Mobile Safari/537.36 /OS.Gatu v3.0';
 const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': MOBILE_UA,
     'X-Requested-With': 'XMLHttpRequest'
 };
 const USER_TOKEN = '233123f803cf02184bf6c67e149cdd50';
@@ -20,16 +21,53 @@ const arg = (flag: string, fallback: string | undefined = undefined) => {
 };
 
 async function bypass(mainUrl: string): Promise<string> {
-    let attempts = 0;
-    while (attempts < 10) {
-        const res = await fetch(`${mainUrl}/tv/p.php`, { method: 'POST', headers: HEADERS });
-        const txt = await res.text();
-        const setCookie = res.headers.get('set-cookie') || '';
-        const match = setCookie.match(/t_hash_t=([^;]+)/);
-        if (txt.includes('"r":"n"') && match) return match[1];
-        attempts++; await sleep(500);
+    // 1. GET mobile home to get addhash
+    const res = await fetch(`${mainUrl}/mobile/home?app=1`, {
+        headers: {
+            'User-Agent': MOBILE_UA,
+            'X-Requested-With': 'app.netmirror.netmirrornew'
+        }
+    });
+    const html = await res.text();
+    const hashMatch = html.match(/data-addhash="([^"]+)"/);
+    if (!hashMatch) throw new Error('Could not find data-addhash');
+    const addhash = hashMatch[1];
+
+    // 2. GET userver to register the hash
+    const time = Math.floor(Date.now() / 1000);
+    await fetch(`https://userver.net52.cc/?jjoii=${addhash}&a=y&t=${time}`, {
+        headers: { 'User-Agent': MOBILE_UA }
+    });
+
+    // 3. Wait and verify loop (up to 8 times with 10s delay)
+    let retries = 0;
+    while (retries < 8) {
+        console.log(`Bypass polling attempt ${retries + 1}...`);
+        await sleep(10000);
+        
+        try {
+            const vRes = await fetch(`${mainUrl}/mobile/verify2.php`, {
+                method: 'POST',
+                headers: {
+                    'User-Agent': MOBILE_UA,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `verify=${addhash}`
+            });
+            const verifyCheck = await vRes.text();
+            
+            if (verifyCheck.includes('"statusup":"All Done"')) {
+                const setCookie = vRes.headers.get('set-cookie');
+                if (setCookie) {
+                    const match = setCookie.match(/t_hash_t=([^;]+)/);
+                    if (match) return match[1];
+                }
+            }
+        } catch (e) {}
+        retries++;
     }
-    throw new Error('Bypass failed: could not obtain t_hash_t');
+    throw new Error('Bypass failed after max retries');
 }
 
 async function fetchEpisodes(movieId: string, cookie: string) {
