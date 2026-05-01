@@ -1,15 +1,15 @@
 import * as crypto from 'crypto';
 import * as zlib from 'zlib';
 
-const MAIN_URL = 'https://i6a6.t9z0.com';
-const DEVICE_ID = '2987149b2e2a63b2';
-const GAID = '';
-const SECRET_KEY_ENCRYPTED = 'MxASAkl/yHTGg+/Tw1R7u96nGqkWsOZ2';
-const DES_KEY = 'dsawdf634eebGFHITR5UT9kS0';
-const DES_IV = '32456738';
-const AES_KEY = '0123456789123456';
-const AES_IV = '2015030120123456';
-const WS_SECRET = '00b5f05c40b4f1d91dbc9b3fd8a059ef';
+const MAIN_URL = process.env.MEOWVERSE_MAIN_URL || 'https://i6a6.t9z0.com';
+const DEVICE_ID = process.env.MEOWVERSE_DEVICE_ID || '2987149b2e2a63b2';
+const GAID = process.env.MEOWVERSE_GAID || '';
+const SECRET_KEY_ENCRYPTED = process.env.MEOWVERSE_SECRET_KEY_ENCRYPTED || '';
+const DES_KEY = process.env.MEOWVERSE_DES_KEY || '';
+const DES_IV = process.env.MEOWVERSE_DES_IV || '';
+const AES_KEY = process.env.MEOWVERSE_AES_KEY || '';
+const AES_IV = process.env.MEOWVERSE_AES_IV || '';
+const WS_SECRET = process.env.MEOWVERSE_WS_SECRET || '';
 
 function des3Decrypt(encryptedBase64: string): string {
     const key = Buffer.from(DES_KEY).subarray(0, 24);
@@ -86,6 +86,13 @@ function getHeaders(curTime: string, secret: string, token: string) {
 
 async function main() {
     console.log('--- CineTv Handshake ---');
+
+    if (!SECRET_KEY_ENCRYPTED || !DES_KEY || !AES_KEY) {
+        console.error('Error: Missing required environment variables (MEOWVERSE_SECRET_KEY_ENCRYPTED, MEOWVERSE_DES_KEY, MEOWVERSE_AES_KEY).');
+        console.error('Please ensure they are set in your environment or .env file.');
+        process.exit(1);
+    }
+
     const vodId = process.argv[3] || '248593';
 
     const secret = des3Decrypt(SECRET_KEY_ENCRYPTED);
@@ -109,7 +116,8 @@ async function main() {
 
     console.log(`Fetching info for ID: ${vodId}...`);
     const infoTime = Date.now().toString();
-    const p2pToken = md5('Zox882LYjEn4Rqpa' + DEVICE_ID + vodId + infoTime).toUpperCase();
+    const p2pSalt = process.env.MEOWVERSE_P2P_SALT || 'Zox882LYjEn4Rqpa';
+    const p2pToken = md5(p2pSalt + DEVICE_ID + vodId + infoTime).toUpperCase();
     const infoRes = await fetch(`${MAIN_URL}/api/vod/info_new`, {
         method: 'POST',
         headers: getHeaders(infoTime, secret, token),

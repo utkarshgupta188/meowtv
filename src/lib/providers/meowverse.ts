@@ -88,7 +88,7 @@ function generateSign(secret: string, curTime: string): string {
 }
 
 function generateP2PToken(vodId: string, timestamp: string): string {
-    const salt = 'Zox882LYjEn4Rqpa';
+    const salt = process.env.MEOWVERSE_P2P_SALT || 'Zox882LYjEn4Rqpa';
     return md5(salt + DEVICE_ID + vodId + timestamp).toUpperCase();
 }
 
