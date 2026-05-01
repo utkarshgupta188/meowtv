@@ -1,224 +1,163 @@
-/*
- * Quick handshake checker for MeowVerse.
- * Usage:
- *   npx ts-node scripts/meowverse-handshake.ts --id 81714586 --title "Outlast" [--episode <epId>] [--audio <lang>]
- */
+import * as crypto from 'crypto';
+import * as zlib from 'zlib';
 
-const MAIN_URL = 'https://net22.cc';
-const NEW_URL = 'https://net52.cc';
-const MOBILE_UA = 'Mozilla/5.0 (Linux; Android 12; RMX2117 Build/SP1A.210812.016; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/147.0.7727.55 Mobile Safari/537.36 /OS.Gatu v3.0';
-const HEADERS = {
-    'User-Agent': MOBILE_UA,
-    'X-Requested-With': 'XMLHttpRequest'
-};
-const USER_TOKEN = '233123f803cf02184bf6c67e149cdd50';
+const MAIN_URL = 'https://i6a6.t9z0.com';
+const DEVICE_ID = '2987149b2e2a63b2';
+const GAID = '';
+const SECRET_KEY_ENCRYPTED = 'MxASAkl/yHTGg+/Tw1R7u96nGqkWsOZ2';
+const DES_KEY = 'dsawdf634eebGFHITR5UT9kS0';
+const DES_IV = '32456738';
+const AES_KEY = '0123456789123456';
+const AES_IV = '2015030120123456';
+const WS_SECRET = '00b5f05c40b4f1d91dbc9b3fd8a059ef';
 
-const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
-const arg = (flag: string, fallback: string | undefined = undefined) => {
-    const idx = process.argv.indexOf(flag);
-    if (idx >= 0 && process.argv[idx + 1]) return process.argv[idx + 1];
-    return fallback;
-};
-
-async function bypass(mainUrl: string): Promise<string> {
-    // 1. GET mobile home to get addhash
-    const res = await fetch(`${mainUrl}/mobile/home?app=1`, {
-        headers: {
-            'User-Agent': MOBILE_UA,
-            'X-Requested-With': 'app.netmirror.netmirrornew'
-        }
-    });
-    const html = await res.text();
-    const hashMatch = html.match(/data-addhash="([^"]+)"/);
-    if (!hashMatch) throw new Error('Could not find data-addhash');
-    const addhash = hashMatch[1];
-
-    // 2. GET userver to register the hash
-    const time = Math.floor(Date.now() / 1000);
-    await fetch(`https://userver.net52.cc/?jjoii=${addhash}&a=y&t=${time}`, {
-        headers: { 'User-Agent': MOBILE_UA }
-    });
-
-    // 3. Wait and verify loop (up to 8 times with 10s delay)
-    let retries = 0;
-    while (retries < 8) {
-        console.log(`Bypass polling attempt ${retries + 1}...`);
-        await sleep(10000);
-        
-        try {
-            const vRes = await fetch(`${mainUrl}/mobile/verify2.php`, {
-                method: 'POST',
-                headers: {
-                    'User-Agent': MOBILE_UA,
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: `verify=${addhash}`
-            });
-            const verifyCheck = await vRes.text();
-            
-            if (verifyCheck.includes('"statusup":"All Done"')) {
-                const setCookie = vRes.headers.get('set-cookie');
-                if (setCookie) {
-                    const match = setCookie.match(/t_hash_t=([^;]+)/);
-                    if (match) return match[1];
-                }
-            }
-        } catch (e) {}
-        retries++;
-    }
-    throw new Error('Bypass failed after max retries');
+function des3Decrypt(encryptedBase64: string): string {
+    const key = Buffer.from(DES_KEY).subarray(0, 24);
+    const iv = Buffer.from(DES_IV);
+    const decipher = crypto.createDecipheriv('des-ede3-cbc', key, iv);
+    decipher.setAutoPadding(true);
+    let decrypted = decipher.update(encryptedBase64, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
 }
 
-async function fetchEpisodes(movieId: string, cookie: string) {
-    const time = Math.floor(Date.now() / 1000);
-    const res = await fetch(`${MAIN_URL}/post.php?id=${movieId}&t=${time}`, {
-        headers: {
-            ...HEADERS,
-            'Cookie': `t_hash_t=${cookie}; ott=nf; hd=on; user_token=${USER_TOKEN}`,
-            'Referer': `${MAIN_URL}/tv/home`
-        }
-    });
-    const data = await res.json();
-    const episodes = Array.isArray(data?.episodes) ? data.episodes : [];
-    return { title: data?.title as string | undefined, episodes };
-}
-
-async function getPlayHash(episodeId: string, cookie: string) {
-    const res = await fetch(`${MAIN_URL}/play.php`, {
-        method: 'POST',
-        headers: {
-            ...HEADERS,
-            'Cookie': `t_hash_t=${cookie}; ott=nf; hd=on; user_token=${USER_TOKEN}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Referer': `${MAIN_URL}/home`
-        },
-        body: `id=${episodeId}`
-    });
-    const text = await res.text();
+function aesDecrypt(encryptedBase64: string): string {
     try {
-        const parsed = JSON.parse(text);
-        return typeof parsed?.h === 'string' ? parsed.h : '';
-    } catch {
+        const key = Buffer.from(AES_KEY);
+        const iv = Buffer.from(AES_IV);
+        const data = Buffer.from(encryptedBase64, 'base64');
+        
+        const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+        decipher.setAutoPadding(false); 
+        const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
+
+        let resultText = '';
+        try {
+            resultText = zlib.gunzipSync(decrypted).toString('utf8');
+        } catch (e) {
+            resultText = decrypted.toString('utf8');
+        }
+
+        // HEURISTIC: Strip everything after the last valid JSON closing character
+        // This handles cases where CBC padding (nulls or PKCS7) remains after decryption
+        const lastBrace = resultText.lastIndexOf('}');
+        const lastBracket = resultText.lastIndexOf(']');
+        const cutAt = Math.max(lastBrace, lastBracket);
+        if (cutAt !== -1) {
+            return resultText.substring(0, cutAt + 1);
+        }
+        return resultText.trim();
+    } catch (e) {
+        console.error('[aesDecrypt] Error:', e);
         return '';
     }
 }
 
-const mergeCookies = (base: string, setCookieHeader: string | null) => {
-    if (!setCookieHeader) return base;
-    const map = new Map<string, string>();
-    base.split(';').forEach(c => {
-        const [k, v] = c.trim().split('=');
-        if (k) map.set(k, v || '');
-    });
-    const parts = setCookieHeader.split(/,(?=\s*[a-zA-Z0-9_-]+=)/);
-    parts.forEach(part => {
-        const main = part.split(';')[0].trim();
-        const [k, v] = main.split('=');
-        if (k) map.set(k, v || '');
-    });
-    return Array.from(map.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
-};
-
-async function fetchPlaylist(episodeId: string, h: string, tParam: string, tm: number, cookie: string) {
-    let cookies = `t_hash_t=${cookie}; ott=nf; hd=on; user_token=${USER_TOKEN}`;
-    const headers = { ...HEADERS, 'Cookie': cookies, 'Referer': `${MAIN_URL}/home` } as Record<string, string>;
-
-    // Prime session on net52 with GET play.php + hash if available
-    if (h) {
-        const play52 = await fetch(`${NEW_URL}/play.php?id=${episodeId}&${h}`, { headers, redirect: 'manual' });
-        cookies = mergeCookies(cookies, play52.headers.get('set-cookie'));
-    }
-
-    const buildUrl = (base: string) => `${base}/playlist.php?id=${episodeId}&t=${encodeURIComponent(tParam)}&tm=${tm}${h ? `&${h}` : ''}`;
-    const primaryUrl = buildUrl(NEW_URL);
-    const fallbackUrl = buildUrl(MAIN_URL);
-
-    let body = '';
-    let playlistBase = NEW_URL;
-
-    const tryFetch = async (url: string) => {
-        const res = await fetch(url, { headers: { ...headers, 'Cookie': cookies } });
-        cookies = mergeCookies(cookies, res.headers.get('set-cookie'));
-        return res.text();
-    };
-
-    body = await tryFetch(primaryUrl);
-    if (!body || /Video ID not found!/i.test(body)) {
-        body = await tryFetch(fallbackUrl);
-        playlistBase = MAIN_URL;
-    }
-
-    return { body, playlistBase, cookies };
+function md5(text: string): string {
+    return crypto.hash('md5', text, 'hex');
 }
 
-const normalizeFile = (file: string, base: string) => {
-    if (file.startsWith('http')) return file;
-    if (file.startsWith('//')) return `https:${file}`;
-    return `${base}${file.replace('/tv/', '/')}`;
-};
+function getHeaders(curTime: string, secret: string, token: string) {
+    return {
+        'androidid': DEVICE_ID,
+        'app_id': 'cinetvin',
+        'app_language': 'en',
+        'channel_code': 'cinetvin_3001',
+        'cur_time': curTime,
+        'device_id': DEVICE_ID,
+        'en_al': '0',
+        'gaid': GAID,
+        'Host': 'i6a6.t9z0.com',
+        'is_display': 'GMT+05:30',
+        'is_language': 'en',
+        'is_vvv': '0',
+        'mob_mfr': 'google',
+        'mobmodel': 'Pixel 5',
+        'package_name': 'com.cti.cinetvin',
+        'sign': md5(secret + DEVICE_ID + curTime).toUpperCase(),
+        'sys_platform': '2',
+        'sysrelease': '13',
+        'token': token || '',
+        'User-Agent': 'okhttp/4.11.0',
+        'version': '30000',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    };
+}
 
 async function main() {
-    const movieId = arg('--id');
-    if (!movieId) {
-        console.error('Usage: --id <movieId> [--episode <episodeId>] [--title <title>] [--audio <lang>]');
-        process.exit(1);
+    console.log('--- CineTv Handshake ---');
+    const vodId = process.argv[3] || '248593';
+
+    const secret = des3Decrypt(SECRET_KEY_ENCRYPTED);
+    console.log('Secret decrypted');
+
+    const curTime = Date.now().toString();
+    
+    console.log('Initializing device...');
+    const initRes = await fetch(`${MAIN_URL}/api/public/init`, {
+        method: 'POST',
+        headers: getHeaders(curTime, secret, ''),
+        body: 'invited_by=&is_install=1'
+    });
+
+    const initText = await initRes.text();
+    const decrypted = aesDecrypt(initText.trim());
+    console.log('Decrypted init:', decrypted.slice(0, 100) + '...');
+    const initJson = JSON.parse(decrypted);
+    const token = initJson.result?.user_info?.token;
+    console.log(`Token: ${token}`);
+
+    console.log(`Fetching info for ID: ${vodId}...`);
+    const infoTime = Date.now().toString();
+    const p2pToken = md5('Zox882LYjEn4Rqpa' + DEVICE_ID + vodId + infoTime).toUpperCase();
+    const infoRes = await fetch(`${MAIN_URL}/api/vod/info_new`, {
+        method: 'POST',
+        headers: getHeaders(infoTime, secret, token),
+        body: `sign=${p2pToken}&vod_id=${vodId}&cur_time=${infoTime}&audio_type=0`
+    });
+
+    const infoText = await infoRes.text();
+    const infoJson = JSON.parse(aesDecrypt(infoText.trim()));
+
+    if (infoJson.result) {
+        const info = infoJson.result;
+        console.log(`Title: ${info.vod_name}`);
+        const collections = info.vod_collection || [];
+        const rawUrl = collections[0]?.vod_url || info.vod_url;
+        console.log(`Raw URL: ${rawUrl}`);
+
+        const parsedUrl = new URL(rawUrl);
+        const path = parsedUrl.pathname;
+        const expiry = Math.floor(Date.now() / 1000) + (5 * 60 * 60);
+        const wsTime = expiry.toString(16);
+        const wsSecret = md5(WS_SECRET + path + wsTime);
+        const signedUrl = `${rawUrl}?wsSecret=${wsSecret}&wsTime=${wsTime}`;
+        console.log(`Signed URL: ${signedUrl}`);
+
+        const rangeRes = await fetch(signedUrl, { 
+            headers: { 
+                'User-Agent': 'okhttp/4.11.0',
+                'Range': 'bytes=0-10'
+            } 
+        });
+        console.log('Status:', rangeRes.status);
+        console.log('Content-Length:', rangeRes.headers.get('content-length'));
+        console.log('Content-Range:', rangeRes.headers.get('content-range'));
     }
-    const explicitEpisode = arg('--episode');
-    const titleOverride = arg('--title', '');
-    const audio = arg('--audio', '');
 
-    console.log('Starting handshake...');
-    const tHash = await bypass(MAIN_URL);
-    console.log('Bypass cookie acquired');
+    console.log('Testing search for "2024"...');
+    const searchTime = Date.now().toString();
+    const searchRes = await fetch(`${MAIN_URL}/api/search/result`, {
+        method: 'POST',
+        headers: getHeaders(searchTime, secret, token),
+        body: 'kw=2024&pn=1'
+    });
+    const searchText = await searchRes.text();
+    const searchDecrypted = aesDecrypt(searchText.trim());
+    const searchJson = JSON.parse(searchDecrypted);
+    console.log(`Search found ${searchJson.result?.length || 0} items.`);
 
-    const { title: fetchedTitle, episodes } = await fetchEpisodes(movieId, tHash);
-    const episodeId = explicitEpisode || episodes?.[0]?.id || movieId;
-    const titleParam = audio || titleOverride || fetchedTitle || '';
-    const tm = Math.floor(Date.now() / 1000);
-
-    console.log(`Using episode: ${episodeId}`);
-    const h = await getPlayHash(episodeId, tHash);
-    console.log(`play.php hash: ${h || 'none'}`);
-
-    const { body, playlistBase } = await fetchPlaylist(episodeId, h, titleParam, tm, tHash);
-    if (!body) {
-        console.error('Playlist fetch failed');
-        process.exit(1);
-    }
-
-    let playlist: any;
-    try {
-        playlist = JSON.parse(body);
-    } catch {
-        console.error('Playlist was not JSON. First 200 chars:', body.substring(0, 200));
-        process.exit(1);
-    }
-
-    const item = Array.isArray(playlist) ? playlist[0] : undefined;
-    if (!item || !Array.isArray(item.sources)) {
-        console.error('No sources in playlist');
-        process.exit(1);
-    }
-
-    const sources = item.sources.map((s: any) => ({
-        label: s.label || 'Auto',
-        url: normalizeFile(String(s.file || ''), playlistBase)
-    }));
-    const subtitles = Array.isArray(item.tracks) ? item.tracks : [];
-
-    console.log('Playable sources:');
-    sources.forEach((s: any) => console.log(`- ${s.label}: ${s.url}`));
-
-    if (subtitles.length) {
-        console.log('Subtitles:');
-        subtitles.forEach((t: any) => console.log(`- ${t.label || t.language || 'sub'}: ${normalizeFile(String(t.file || ''), playlistBase)}`));
-    }
-
-    console.log('Done. Use the HLS URL above with the same Referer and cookies if needed.');
+    console.log('Done.');
 }
 
-main().catch(err => {
-    console.error(err);
-    process.exit(1);
-});
+main().catch(console.error);

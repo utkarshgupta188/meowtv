@@ -13,7 +13,7 @@ export default async function WatchPage({
 }) {
     const cookieStore = await cookies();
     const providerName = cookieStore.get('provider')?.value;
-    const showOpenDownload = providerName !== 'MeowVerse';
+    const showOpenDownload = true;
 
     const { id } = await params;
     const decodedId = decodeURIComponent(id);
@@ -84,15 +84,12 @@ export default async function WatchPage({
             }
         }
 
-        // Only fetch on server if NOT MeowVerse
-        if (providerName !== 'MeowVerse') {
-            try {
-                // Use sourceMovieId (Season ID) if available, otherwise main ID
-                const movieIdToUse = currentEpisode.sourceMovieId || details.id;
-                videoData = await fetchStreamUrl(movieIdToUse, currentEpisode.id, languageId);
-            } catch (e) {
-                console.error(e);
-            }
+        try {
+            // Use sourceMovieId (Season ID) if available, otherwise main ID
+            const movieIdToUse = currentEpisode.sourceMovieId || details.id;
+            videoData = await fetchStreamUrl(movieIdToUse, currentEpisode.id, languageId);
+        } catch (e) {
+            console.error(e);
         }
     }
 
@@ -126,13 +123,6 @@ export default async function WatchPage({
         <div className="container page-pad">
             {/* Pass everything to Client Wrapper */}
             <div className="watch-player-wrapper" style={{ minHeight: '60vh' }}>
-                {currentEpisode ? (
-                    <script
-                        dangerouslySetInnerHTML={{
-                            __html: `console.log("Rendering WatchClient for ${providerName}");`
-                        }}
-                    />
-                ) : null}
                 {currentEpisode ? (
                     /* We need to import WatchClient. Since page is Server Component, 
                        we can just import it at top and render it. */

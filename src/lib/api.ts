@@ -145,13 +145,18 @@ export async function fetchDetails(id: string, includeEpisodes: boolean = true):
     try {
         const details = await provider.fetchDetails(id, includeEpisodes);
         if (details) {
-            setCachedDetails(cacheKey, details);
+            // Only cache if NOT MeowVerse during debugging
+            if (providerName !== 'MeowVerse') {
+                setCachedDetails(cacheKey, details);
+            }
             return details;
         }
     } catch (e) {
-        console.error('[api] fetchDetails failed, using cache if available', e);
+        console.error('[api] fetchDetails failed', e);
     }
 
+    // Don't return cached MeowVerse details during debugging
+    if (providerName === 'MeowVerse') return null;
     const cached = getCachedDetails(cacheKey);
     if (cached) return cached;
 
@@ -206,13 +211,18 @@ export async function fetchStreamUrl(
     try {
         const videoData = await provider.fetchStreamUrl(movieId, episodeId, languageId);
         if (videoData) {
-            setCachedStream(cacheKey, videoData);
+            // Only cache if NOT MeowVerse during debugging
+            if (providerName !== 'MeowVerse') {
+                setCachedStream(cacheKey, videoData);
+            }
             return videoData;
         }
     } catch (e) {
-        console.error('[api] fetchStreamUrl failed, using cache if available', e);
+        console.error('[api] fetchStreamUrl failed', e);
     }
 
+    // Don't return cached MeowVerse streams during debugging
+    if (providerName === 'MeowVerse') return null;
     return getCachedStream(cacheKey);
 }
 

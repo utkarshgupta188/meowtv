@@ -1,202 +1,239 @@
-import { Provider, HomePageRow, ContentItem, MovieDetails, Episode, VideoResponse } from './types';
-import * as cheerio from 'cheerio';
+import { 
+    Provider, 
+    HomePageRow, 
+    ContentItem, 
+    MovieDetails, 
+    Episode, 
+    VideoResponse,
+    Track,
+    Season
+} from './types';
 import { getHlsProxyUrl, getSimpleProxyUrl } from '../proxy-config';
+import * as crypto from 'crypto';
+import * as zlib from 'zlib';
 
-const MAIN_URL = 'https://net22.cc';
-const STREAM_URL = 'https://net52.cc'; // Kotlin CloudStream mainUrl — used for /mobile/playlist.php
+const MAIN_URL = 'https://i6a6.t9z0.com';
+const DEVICE_ID = '2987149b2e2a63b2';
+const GAID = '';
+const SECRET_KEY_ENCRYPTED = process.env.MEOWVERSE_SECRET_KEY_ENCRYPTED || '';
+const DES_KEY = process.env.MEOWVERSE_DES_KEY || '';
+const DES_IV = process.env.MEOWVERSE_DES_IV || '';
+const AES_KEY = process.env.MEOWVERSE_AES_KEY || '';
+const AES_IV = process.env.MEOWVERSE_AES_IV || '';
+const WS_SECRET = process.env.MEOWVERSE_WS_SECRET || '';
 
-const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 12; RMX2117 Build/SP1A.210812.016; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/147.0.7727.55 Mobile Safari/537.36 /OS.Gatu v3.0',
-    'X-Requested-With': 'XMLHttpRequest',
-};
+let cachedSecret: string | null = null;
+let cachedToken: string | null = null;
+let tokenExpiresAt = 0;
 
-// Cached cookies
-let cachedDirectCookie: string | null = null;
-let cachedProxyCookie: string | null = null;
-let cacheDirectTimestamp: number = 0;
-let cacheProxyTimestamp: number = 0;
-const CACHE_DURATION = 54_000_000; // 15 hours
+// --- Crypto Helpers ---
 
-// Helper to fetch via proxy if configured
-async function proxiedFetch(url: string, init?: RequestInit): Promise<Response> {
-    const { PROXY_WORKER_URL, getSimpleProxyUrl } = await import('../proxy-config');
-
-    // If no proxy worker, use direct fetch
-    if (!PROXY_WORKER_URL) {
-        return fetch(url, init);
+function des3Decrypt(encryptedBase64: string): string {
+    try {
+        const key = Buffer.from(DES_KEY).subarray(0, 24);
+        const iv = Buffer.from(DES_IV);
+        const decipher = crypto.createDecipheriv('des-ede3-cbc', key, iv);
+        decipher.setAutoPadding(true);
+        let decrypted = decipher.update(encryptedBase64, 'base64', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+    } catch (e) {
+        console.error('[MeowVerse] DES3 decryption failed', e);
+        return '';
     }
-
-    // Extract headers that browsers might block if set manually
-    const headers = new Headers(init?.headers);
-    const cookie = headers.get('Cookie') || headers.get('cookie');
-    const referer = headers.get('Referer') || headers.get('referer');
-
-    // Explicitly set headers to null/empty in the fetch options to avoid "unsafe header" warnings
-    if (cookie) headers.delete('Cookie');
-    if (referer) headers.delete('Referer');
-
-    // Use proxy with explicit params
-    const proxyUrl = getSimpleProxyUrl(url, {
-        ...(init?.redirect ? { redirect: init.redirect } : {}),
-        ua: HEADERS['User-Agent'], // Force UA
-        ...(cookie ? { cookie } : {}),
-        ...(referer ? { referer } : {})
-    });
-
-    // Cloudflare Worker expects body to be passed as body to the proxy endpoint
-    return fetch(proxyUrl, {
-        ...init,
-        headers
-        // body is preserved in init
-    });
 }
 
-async function bypass(mainUrl: string, useProxy: boolean = false): Promise<string> {
-    // Select cache based on mode
-    const cachedCookie = useProxy ? cachedProxyCookie : cachedDirectCookie;
-    const timestamp = useProxy ? cacheProxyTimestamp : cacheDirectTimestamp;
+/**
+ * Re-implemented to match Python's behavior: decrypt raw CBC and then GZIP decompress.
+ * Python's cipher.decrypt() doesn't unpad, so we handle possible trailing bytes.
+ */
+function aesDecrypt(encryptedBase64: string): string {
+    try {
+        const key = Buffer.from(AES_KEY);
+        const iv = Buffer.from(AES_IV);
+        const data = Buffer.from(encryptedBase64, 'base64');
+        
+        const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+        decipher.setAutoPadding(false); 
+        const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
 
-    // Return cached cookie if valid
-    if (cachedCookie && Date.now() - timestamp < CACHE_DURATION) {
-        return cachedCookie;
+        let resultText = '';
+        try {
+            resultText = zlib.gunzipSync(decrypted).toString('utf8');
+        } catch (e) {
+            resultText = decrypted.toString('utf8');
+        }
+
+        // HEURISTIC: Strip everything after the last valid JSON closing character
+        // This handles cases where CBC padding (nulls or PKCS7) remains after decryption
+        const lastBrace = resultText.lastIndexOf('}');
+        const lastBracket = resultText.lastIndexOf(']');
+        const cutAt = Math.max(lastBrace, lastBracket);
+        if (cutAt !== -1) {
+            return resultText.substring(0, cutAt + 1);
+        }
+        return resultText.trim();
+    } catch (e) {
+        console.error('[MeowVerse] AES decryption failed', e);
+        return '';
+    }
+}
+
+function md5(text: string): string {
+    return crypto.createHash('md5').update(text).digest('hex');
+}
+
+function generateSign(secret: string, curTime: string): string {
+    return md5((secret || '') + DEVICE_ID + curTime).toUpperCase();
+}
+
+function generateP2PToken(vodId: string, timestamp: string): string {
+    const salt = 'Zox882LYjEn4Rqpa';
+    return md5(salt + DEVICE_ID + vodId + timestamp).toUpperCase();
+}
+
+// --- API Helpers ---
+
+function getHeaders(curTime: string, secret: string, token: string) {
+    return {
+        'androidid': DEVICE_ID,
+        'app_id': 'cinetvin',
+        'app_language': 'en',
+        'channel_code': 'cinetvin_3001',
+        'cur_time': curTime,
+        'device_id': DEVICE_ID,
+        'en_al': '0',
+        'gaid': GAID,
+        'Host': 'i6a6.t9z0.com',
+        'is_display': 'GMT+05:30',
+        'is_language': 'en',
+        'is_vvv': '0',
+        'log-header': 'I am the log request header.',
+        'mob_mfr': 'google',
+        'mobmodel': 'Pixel 5',
+        'package_name': 'com.cti.cinetvin',
+        'sign': generateSign(secret, curTime),
+        'sys_platform': '2',
+        'sysrelease': '13',
+        'token': token,
+        'User-Agent': 'okhttp/4.11.0',
+        'version': '30000',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    };
+}
+
+async function ensureToken() {
+    if (!cachedSecret) {
+        cachedSecret = des3Decrypt(SECRET_KEY_ENCRYPTED);
     }
 
-    const mobileUA = HEADERS['User-Agent'];
-    const fetchFn = useProxy ? proxiedFetch : fetch;
+    if (cachedToken && Date.now() < tokenExpiresAt) {
+        return { secret: cachedSecret, token: cachedToken };
+    }
+
+    const curTime = Date.now().toString();
+    const headers = getHeaders(curTime, cachedSecret, '');
+    const body = new URLSearchParams({ invited_by: '', is_install: '1' });
 
     try {
-        // 1. GET mobile home to get addhash
-        const res = await fetchFn(`${mainUrl}/mobile/home?app=1`, {
-            headers: {
-                'User-Agent': mobileUA,
-                'X-Requested-With': 'app.netmirror.netmirrornew'
-            }
-        });
-        const html = await res.text();
-        const hashMatch = html.match(/data-addhash="([^"]+)"/);
-        if (!hashMatch) throw new Error('Could not find data-addhash');
-        const addhash = hashMatch[1];
-
-        // 2. GET userver to register the hash
-        const time = Math.floor(Date.now() / 1000);
-        await fetchFn(`https://userver.net52.cc/?jjoii=${addhash}&a=y&t=${time}`, {
-            headers: { 'User-Agent': mobileUA }
+        const res = await fetch(`${MAIN_URL}/api/public/init`, {
+            method: 'POST',
+            headers,
+            body: body.toString()
         });
 
-        // 3. Wait and verify loop (up to 8 times with 10s delay)
-        let retries = 0;
-        while (retries < 8) {
-            // Wait 10 seconds (as seen in Kotlin delay(10000))
-            await new Promise(resolve => setTimeout(resolve, 10000));
-            
-            try {
-                const vRes = await fetchFn(`${mainUrl}/mobile/verify2.php`, {
-                    method: 'POST',
-                    headers: {
-                        'User-Agent': mobileUA,
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: `verify=${addhash}`
-                });
-                const verifyCheck = await vRes.text();
-                
-                if (verifyCheck.includes('"statusup":"All Done"')) {
-                    const setCookie = useProxy
-                        ? (vRes.headers.get('x-proxied-set-cookie') || vRes.headers.get('set-cookie'))
-                        : vRes.headers.get('set-cookie');
-                    
-                    if (setCookie) {
-                        const match = setCookie.match(/t_hash_t=([^;]+)/);
-                        if (match) {
-                            const cookieVal = match[1];
-                            if (useProxy) {
-                                cachedProxyCookie = cookieVal;
-                                cacheProxyTimestamp = Date.now();
-                            } else {
-                                cachedDirectCookie = cookieVal;
-                                cacheDirectTimestamp = Date.now();
-                            }
-                            return cookieVal;
-                        }
-                    }
-                }
-            } catch (e) {
-                // Ignore transient fetch errors during verify loop
-            }
-            retries++;
-        }
-
-        throw new Error('Bypass failed after max retries');
+        const text = await res.text();
+        const jsonText = text.startsWith('{') ? text : aesDecrypt(text.trim());
+        const data = JSON.parse(jsonText?.trim() || '{}');
+        cachedToken = data.result?.user_info?.token || '';
+        tokenExpiresAt = Date.now() + 3600 * 1000;
     } catch (e) {
-        console.error('[CNC Verse] Bypass error DETAILS:', e);
-        if (useProxy) cachedProxyCookie = null;
-        else cachedDirectCookie = null;
-        throw e;
+        console.error('[MeowVerse] ensureToken failed', e);
+    }
+
+    return { secret: cachedSecret, token: cachedToken || '' };
+}
+
+// --- Provider Implementation ---
+
+function generateByteRangeM3u8(url: string, size: number, chunkMB: number = 10): string {
+    const chunkSize = chunkMB * 1024 * 1024;
+    const numChunks = Math.ceil(size / chunkSize);
+    let m3u8 = "#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-TARGETDURATION:60\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n\n";
+    
+    for (let i = 0; i < numChunks; i++) {
+        const start = i * chunkSize;
+        const length = i === numChunks - 1 ? size - start : chunkSize;
+        // Approximation: 10MB ~ 10-20 seconds of 1080p video, 60s is safe TargetDuration
+        m3u8 += `#EXTINF:30.0,\n#EXT-X-BYTERANGE:${length}@${start}\n${url}\n`;
+    }
+    
+    m3u8 += "#EXT-X-ENDLIST";
+    const base64 = Buffer.from(m3u8).toString('base64');
+    return `data:application/x-mpegurl;base64,${base64}`;
+}
+
+async function searchRecommend(page: number): Promise<ContentItem[]> {
+    const { secret, token } = await ensureToken();
+    const curTime = Date.now().toString();
+    const headers = getHeaders(curTime, secret, token);
+    const body = new URLSearchParams({ pn: page.toString() });
+
+    try {
+        const res = await fetch(`${MAIN_URL}/api/search/recommend`, {
+            method: 'POST',
+            headers,
+            body: body.toString()
+        });
+
+        const text = await res.text();
+        const decrypted = aesDecrypt(text.trim());
+        const data = JSON.parse(decrypted?.trim() || '{}');
+        const results = data.result || [];
+
+        return results.map((item: any) => ({
+            id: String(item.id),
+            title: item.vod_name,
+            coverImage: item.vod_pic,
+            type: item.type_pid === 2 ? 'series' : 'movie'
+        }));
+    } catch (e) {
+        console.error('[MeowVerse] searchRecommend failed', e);
+        return [];
     }
 }
 
-// Helper function to fetch all pages from paginated endpoints
-async function fetchAllPages(
-    baseUrl: string,
-    headers: HeadersInit,
-    episodeProcessor: (ep: any) => Episode
-): Promise<Episode[]> {
-    const allEpisodes: Episode[] = [];
-    let currentPage = 1;
-    let hasMorePages = true;
+async function topicVodList(topicId: string, page: number): Promise<ContentItem[]> {
+    const { secret, token } = await ensureToken();
+    const curTime = Date.now().toString();
+    const headers = getHeaders(curTime, secret, token);
+    const body = new URLSearchParams({ 
+        topic_id: topicId,
+        pn: page.toString() 
+    });
 
-    while (hasMorePages) {
-        try {
-            const url = currentPage === 1 ? baseUrl : `${baseUrl}&page=${currentPage}`;
+    try {
+        const res = await fetch(`${MAIN_URL}/api/topic/vod_list`, {
+            method: 'POST',
+            headers,
+            body: body.toString()
+        });
 
+        const text = await res.text();
+        const decrypted = aesDecrypt(text.trim());
+        const data = JSON.parse(decrypted?.trim() || '{}');
+        const results = data.result?.vod_list || [];
 
-            const res = await proxiedFetch(url, { headers });
-            const data = await res.json();
-
-            if (data.episodes && data.episodes.length > 0) {
-                data.episodes.forEach((ep: any) => {
-                    if (ep) allEpisodes.push(episodeProcessor(ep));
-                });
-
-
-
-                if (data.nextPageShow === 0 || data.nextPageShow === '0') {
-                    hasMorePages = false;
-                } else if (data.nextPage && currentPage >= data.nextPage) {
-                    hasMorePages = false;
-                } else if (data.episodes.length < 10) {
-                    hasMorePages = false;
-                } else if (data.nextPageShow === 1 || data.nextPageShow === '1') {
-                    hasMorePages = true;
-                } else if (data.nextPage && currentPage < data.nextPage) {
-                    hasMorePages = true;
-                } else if (currentPage === 1 && data.episodes.length === 10) {
-                    hasMorePages = true;
-                } else {
-                    hasMorePages = false;
-                }
-            } else {
-
-                hasMorePages = false;
-                break;
-            }
-
-            currentPage++;
-
-            // Safety limit to prevent infinite loops
-            if (currentPage > 100) {
-
-                break;
-            }
-        } catch (err) {
-
-            hasMorePages = false;
-        }
+        return results.map((item: any) => ({
+            id: String(item.id),
+            title: item.vod_name,
+            coverImage: item.vod_pic,
+            type: item.type_pid === 2 ? 'series' : 'movie'
+        }));
+    } catch (e) {
+        console.error(`[MeowVerse] topicVodList(${topicId}) failed`, e);
+        return [];
     }
-
-
-    return allEpisodes;
 }
 
 export const MeowVerseProvider: Provider = {
@@ -205,403 +242,212 @@ export const MeowVerseProvider: Provider = {
     async fetchHome(page: number): Promise<Promise<HomePageRow[]>[]> {
         if (page > 1) return [];
 
-        const fetchRows = async (): Promise<HomePageRow[]> => {
-            try {
-                const cookieValue = await bypass(STREAM_URL, true); // Proxied, net52.cc like Kotlin
-                const headers = {
-                    ...HEADERS,
-                    'Cookie': `t_hash_t=${cookieValue}; ott=nf; hd=on; user_token=233123f803cf02184bf6c67e149cdd50`
-                };
+        const categories = [
+            { id: "1", name: "Recommended" },
+            { id: "4008", name: "Trending Now" },
+            { id: "4464", name: "Most Popular" },
+            { id: "4009", name: "Hottest International Films" },
+            { id: "4134", name: "This Month: You Can't Miss" },
+            { id: "4004", name: "Top Series This Week" }
+        ];
 
-                const res = await proxiedFetch(`${STREAM_URL}/home`, { headers });
-                const html = await res.text();
-                const $ = cheerio.load(html);
-                const rows: HomePageRow[] = [];
-
-                $('.lolomoRow').each((_, elem) => {
-                    const name = $(elem).find('h2 > span > div').text().trim();
-                    const contents: ContentItem[] = [];
-
-                    $(elem).find('img.lazy').each((_, img) => {
-                        const src = $(img).attr('data-src');
-                        const id = src?.split('/').pop()?.split('.')[0];
-                        if (id) {
-                            contents.push({
-                                title: '',
-                                coverImage: `https://imgcdn.kim/poster/v/${id}.jpg`,
-                                id: id,
-                                type: 'movie'
-                            });
-                        }
-                    });
-
-                    if (contents.length > 0) rows.push({ name, contents });
-                });
-
-                return rows;
-            } catch (e) {
-                return [];
-            }
-        };
-
-        return [fetchRows()];
+        return categories.map(async (cat) => {
+            const items = cat.id === "1" 
+                ? await searchRecommend(page)
+                : await topicVodList(cat.id, page);
+            
+            return [{
+                name: cat.name,
+                contents: items
+            }];
+        });
     },
 
     async search(query: string): Promise<ContentItem[]> {
+        const { secret, token } = await ensureToken();
+        const curTime = Date.now().toString();
+        const headers = getHeaders(curTime, secret, token);
+        const body = new URLSearchParams({ kw: query, pn: '1' });
+
         try {
-            const cookieValue = await bypass(STREAM_URL, true); // Proxied, net52.cc like Kotlin
-            const time = Math.floor(Date.now() / 1000);
-            const url = `${STREAM_URL}/search.php?s=${encodeURIComponent(query)}&t=${time}`;
+            const res = await fetch(`${MAIN_URL}/api/search/result`, {
+                method: 'POST',
+                headers,
+                body: body.toString()
+            });
 
-            const headers = {
-                ...HEADERS,
-                'Cookie': `t_hash_t=${cookieValue}; ott=nf; hd=on`,
-                'Referer': `${STREAM_URL}/tv/home`
-            };
+            const text = await res.text();
+            const decrypted = aesDecrypt(text.trim());
+            const data = JSON.parse(decrypted?.trim() || '{}');
+            const results = data.result || [];
 
-            const res = await proxiedFetch(url, { headers });
-            const data = await res.json();
-
-            return (data.searchResult || []).map((item: any) => ({
-                title: item.t,
-                coverImage: `https://imgcdn.kim/poster/v/${item.id}.jpg`,
-                id: item.id,
+            return results.map((item: any) => ({
+                id: String(item.id),
+                title: item.vod_name,
+                coverImage: item.vod_pic,
                 type: 'movie'
             }));
         } catch (e) {
-
+            console.error('[MeowVerse] search failed', e);
             return [];
         }
     },
 
     async fetchDetails(id: string, includeEpisodes: boolean = true): Promise<MovieDetails | null> {
+        const { secret, token } = await ensureToken();
+        const curTime = Date.now().toString();
+        const headers = getHeaders(curTime, secret, token);
+        const p2pToken = generateP2PToken(id, curTime);
+        const body = new URLSearchParams({
+            sign: p2pToken,
+            vod_id: id,
+            cur_time: curTime,
+            audio_type: '0'
+        });
+
         try {
-            const cookieValue = await bypass(STREAM_URL, true); // Proxied, net52.cc like Kotlin
-            const time = Math.floor(Date.now() / 1000);
-            const url = `${STREAM_URL}/post.php?id=${id}&t=${time}`;
+            const res = await fetch(`${MAIN_URL}/api/vod/info_new`, {
+                method: 'POST',
+                headers,
+                body: body.toString()
+            });
 
-            const headers = {
-                ...HEADERS,
-                'Cookie': `t_hash_t=${cookieValue}; ott=nf; hd=on`,
-                'Referer': `${STREAM_URL}/tv/home`
-            };
+            const text = await res.text();
+            const decrypted = aesDecrypt(text.trim());
+            const data = JSON.parse(decrypted?.trim() || '{}');
+            const info = data.result;
+            try {
+                require('fs').appendFileSync('meowverse.log', `[${new Date().toISOString()}] INFO KEYS: ${Object.keys(info || {}).join(', ')}\n`);
+                if (info) require('fs').appendFileSync('meowverse.log', `[${new Date().toISOString()}] FULL INFO: ${JSON.stringify(info)}\n`);
+            } catch(e) {}
 
-            const res = await proxiedFetch(url, { headers });
-            const data = await res.json();
+            if (!info) return null;
 
-            // CNCVerse exposes available audio languages via post.php:
-            // - d_lang: default language code (usually "eng")
-            // - lang: array like [{ l: "Hindi", s: "hin" }, ...]
-            // These are real options from the provider (not guessed, not derived from HLS manifests).
-            const audioTracksFromPost = (() => {
-                const tracks: Array<{ name: string; languageId: string; isDefault?: boolean }> = [];
-
-                // Keep an explicit "Default" option that maps to empty audioParam (no language.php POST).
-                tracks.push({ name: 'Default', languageId: '', isDefault: true });
-
-                const langList: any[] = Array.isArray(data?.lang) ? data.lang : [];
-                for (const entry of langList) {
-                    const code = String(entry?.s ?? '').trim();
-                    const label = String(entry?.l ?? '').trim();
-                    if (!code) continue;
-                    // "und" is shown as "Unknown" and isn't a meaningful selectable audio.
-                    if (code.toLowerCase() === 'und') continue;
-
-                    tracks.push({
-                        name: label || code,
-                        languageId: code,
-                        isDefault: false,
-                    });
-                }
-
-                // De-dupe by languageId while preserving order.
-                const seen = new Set<string>();
-                return tracks.filter(t => {
-                    if (seen.has(t.languageId)) return false;
-                    seen.add(t.languageId);
-                    return true;
-                });
-            })();
+            const audioOptions = info.audio_type_option || [];
+            const audioTracks: Track[] = audioOptions.length > 0 
+                ? audioOptions.map((opt: any) => ({
+                    name: opt.title || opt.type_name || 'Language',
+                    languageId: opt.type
+                }))
+                : (info.vod_writer ? info.vod_writer.split(',').map((t: string, idx: number) => ({
+                    name: t.trim().toUpperCase() === 'HIN' ? 'Hindi' : 
+                          t.trim().toUpperCase() === 'ENG' ? 'English' : t.trim(),
+                    languageId: idx + 1
+                })) : []);
 
             const episodes: Episode[] = [];
+            const collections = info.vod_collection || [];
 
-            if (includeEpisodes) {
-                if (data.episodes && data.episodes[0]) {
-                    // Fetch all pages for the current season shown in post.php
-                    const baseUrl = `${STREAM_URL}/post.php?id=${id}&t=${time}`;
-                    const paginatedEpisodes = await fetchAllPages(
-                        baseUrl,
-                        headers,
-                        (ep: any) => ({
-                            id: ep.id,
-                            title: ep.t,
-                            season: parseInt(ep.s?.replace('S', '') || '1'),
-                            number: parseInt(ep.ep?.replace('E', '') || '1'),
-                            coverImage: `https://imgcdn.kim/epimg/150/${ep.id}.jpg`,
-                            sourceMovieId: id,
-                            tracks: audioTracksFromPost as any
-                        })
-                    );
-                    episodes.push(...paginatedEpisodes);
-
-                    // Fetch additional seasons (skip last one as it's shown above)
-                    if (data.season && data.season.length > 1) {
-                        const additionalSeasons = data.season.slice(0, -1);
-
-                        for (const season of additionalSeasons) {
-                            try {
-                                const baseUrl = `${STREAM_URL}/episodes.php?s=${season.id}&series=${id}&t=${time}`;
-                                const seasonEpisodes = await fetchAllPages(
-                                    baseUrl,
-                                    headers,
-                                    (ep: any) => ({
-                                        id: ep.id,
-                                        title: ep.t,
-                                        season: parseInt(ep.s?.replace('S', '') || '1'),
-                                        number: parseInt(ep.ep?.replace('E', '') || '1'),
-                                        coverImage: `https://imgcdn.kim/epimg/150/${ep.id}.jpg`,
-                                        sourceMovieId: id,
-                                        tracks: audioTracksFromPost as any
-                                    })
-                                );
-                                episodes.push(...seasonEpisodes);
-                            } catch (err) {
-
-                            }
-                        }
-                    }
-                } else {
-                    episodes.push({
-                        id: id,
-                        title: data.title,
-                        number: 1,
-                        season: 1,
-                        sourceMovieId: id,
-                        tracks: audioTracksFromPost as any
-                    });
-                }
-
-                // Sort episodes
-                episodes.sort((a, b) => (a.season - b.season) || (a.number - b.number));
+            for (const col of collections) {
+                episodes.push({
+                    id: String(col.id || `${id}:${col.title || col.episode_no}`),
+                    title: col.title || `Episode ${col.episode_no}`,
+                    season: 1,
+                    number: parseInt(col.episode_no || '1'),
+                    sourceMovieId: id,
+                    description: col.vod_name,
+                    tracks: audioTracks
+                });
             }
 
+            if (episodes.length === 0) {
+                episodes.push({
+                    id: id,
+                    title: info.vod_name,
+                    season: 1,
+                    number: 1,
+                    sourceMovieId: id,
+                    tracks: audioTracks
+                });
+            }
+
+            const seriesInfo = info.series_info || [];
+            const seasons: Season[] = seriesInfo.map((s: any) => ({
+                id: String(s.vod_id),
+                number: parseInt(s.series?.replace('Season ', '') || '1') || 1,
+                name: s.series || 'Season 1'
+            }));
 
             return {
                 id: id,
-                title: data.title,
-                description: data.desc,
-                coverImage: `https://imgcdn.kim/poster/v/${id}.jpg`,
-                backgroundImage: `https://imgcdn.kim/poster/h/${id}.jpg`,
-                year: parseInt(data.year),
-                score: parseFloat(data.match?.replace('IMDb ', '') || '0'),
-                episodes,
-                seasons: data.season?.map((s: any) => ({
-                    id: s.id,
-                    number: parseInt(s.id),
-                    name: `Season ${s.id}`
-                })),
-                relatedContent: Array.isArray(data.suggest)
-                    ? data.suggest.map((item: any) => ({
-                        id: item.id,
-                        title: item.t || item.title || '',
-                        image: `https://imgcdn.kim/poster/v/${item.id}.jpg`,
-                        type: 'show' as const,
-                        year: item.year ? parseInt(String(item.year)) : undefined
-                    }))
-                    : undefined
+                title: info.vod_name,
+                description: info.vod_blurb,
+                coverImage: info.vod_pic,
+                backgroundImage: info.vod_pic_bg,
+                year: parseInt(info.vod_year || '0'),
+                score: parseFloat(info.vod_score || '0'),
+                episodes: includeEpisodes ? episodes : [],
+                seasons: seasons.length > 0 ? seasons : [{ id: id, number: 1, name: 'Season 1' }]
             };
-
         } catch (e) {
-
+            console.error('[MeowVerse] fetchDetails failed', e);
             return null;
         }
     },
 
-    async fetchStreamUrl(movieId: string, episodeId: string, audioLang?: string): Promise<VideoResponse | null> {
-
+    async fetchStreamUrl(movieId: string, episodeId: string, languageId?: number | string): Promise<VideoResponse | null> {
+        console.log('[MeowVerse] fetchStreamUrl', { movieId, episodeId, languageId });
         try {
-            const cookieValue = await bypass(STREAM_URL, true); // PROXIED
-            const time = Math.floor(Date.now() / 1000);
-            const audioParam = audioLang || '';
+            const { secret, token } = await ensureToken();
+            const curTime = Date.now().toString();
+            const p2pToken = generateP2PToken(movieId, curTime);
+            const headers = getHeaders(curTime, secret, token);
 
-            // Cookies matching Kotlin CloudStream extension
-            let streamCookies = `t_hash_t=${cookieValue}; ott=nf; hd=on; user_token=233123f803cf02184bf6c67e149cdd50`;
-            const refererMain = `${STREAM_URL}/`;
+            const body = new URLSearchParams({
+                sign: p2pToken,
+                vod_id: movieId,
+                cur_time: curTime,
+                audio_type: (languageId || '0').toString()
+            });
+            const res = await fetch(`${MAIN_URL}/api/vod/info_new`, {
+                method: 'POST',
+                headers,
+                body: body.toString()
+            });
 
-            if (audioParam) {
-                // POST to language.php to set audio language
-                try {
-                    await proxiedFetch(`${STREAM_URL}/language.php`, {
-                        method: 'POST',
-                        headers: {
-                            ...HEADERS,
-                            'Cookie': streamCookies,
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'Referer': refererMain
-                        },
-                        body: `lang=${audioParam}`
-                    });
-                } catch (e) {
+            const text = await res.text();
+            const decrypted = aesDecrypt(text.trim());
+            const data = JSON.parse(decrypted?.trim() || '{}');
+            const info = data.result;
+            try {
+                require('fs').appendFileSync('meowverse.log', `[${new Date().toISOString()}] STREAM INFO: ${JSON.stringify(info)}\n`);
+            } catch(e) {}
+            if (!info) return null;
 
-                }
+            const collections = info.vod_collection || [];
+            let rawUrl = info.vod_url;
+            
+            if (episodeId !== movieId) {
+                const ep = collections.find((c: any) => String(c.id) === episodeId);
+                if (ep) rawUrl = ep.vod_url;
             }
 
-            // Fetch content title (needed for playlist endpoint t= param)
-            let contentTitle = audioParam; // Use audio lang as fallback like the old code
-            try {
-                const postUrl = `${STREAM_URL}/post.php?id=${movieId}&t=${time}`;
-                const postRes = await proxiedFetch(postUrl, {
-                    headers: {
-                        ...HEADERS,
-                        'Cookie': streamCookies,
-                        'Referer': refererMain
-                    }
-                });
-                const postData = await postRes.json();
-                contentTitle = postData.title || postData.t || contentTitle;
-            } catch (e) {
-                // Use audioParam as fallback
-            }
+            if (!rawUrl) return null;
 
-            // Step 1: Get Token from play.php (matches Kotlin getVideoToken)
-            let token = '';
-            try {
-                const playRes = await proxiedFetch(`${MAIN_URL}/play.php`, {
-                    method: 'POST',
-                    headers: {
-                        ...HEADERS,
-                        'Cookie': streamCookies,
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'Referer': `${STREAM_URL}/home`,
-                        'Host': 'net22.cc'
-                    },
-                    body: `id=${episodeId}`
-                });
-                const playData = await playRes.json();
-                if (playData && playData.h) {
-                    const h = playData.h;
-                    token = h.includes('in=') ? h.split('in=')[1] : h;
-                }
-            } catch (e) { /* ignore and try without token */ }
+            // wsSecret/wsTime signing
+            const parsedUrl = new URL(rawUrl);
+            const path = parsedUrl.pathname;
+            const expiry = Math.floor(Date.now() / 1000) + (5 * 60 * 60);
+            const wsTime = expiry.toString(16);
+            const raw = WS_SECRET + path + wsTime;
+            const wsSecret = md5(raw);
+            
+            const signedUrl = `${rawUrl}?wsSecret=${wsSecret}&wsTime=${wsTime}`;
+            
+            // Use global proxy helpers (Cloudflare Worker if configured) to avoid Vercel bandwidth costs
+            const isM3u8 = signedUrl.includes('.m3u8');
+            const finalUrl = isM3u8 
+                ? getHlsProxyUrl(signedUrl, { ua: 'okhttp/4.11.0' })
+                : getSimpleProxyUrl(signedUrl, { ua: 'okhttp/4.11.0' });
 
-            // Use /playlist.php instead of /mobile/playlist.php — matches Kotlin
-            const url = `${STREAM_URL}/playlist.php?id=${episodeId}&t=${encodeURIComponent(contentTitle)}&tm=${time}&h=${token}`;
-            const playlistBaseUrl = STREAM_URL;
-            const playlistReferer = `${STREAM_URL}/`;
-
-            const headers = {
-                ...HEADERS,
-                'Cookie': streamCookies,
-                'Referer': playlistReferer
+            return {
+                videoUrl: finalUrl,
+                qualities: [{ quality: 'Auto', url: finalUrl }],
+                subtitles: [],
+                headers: { 'User-Agent': 'okhttp/4.11.0' }
             };
-
-            let resText = '';
-            try {
-                const playlistRes = await proxiedFetch(url, { headers });
-                resText = await playlistRes.text();
-            } catch (e) {
-
-                return null;
-            }
-
-            let playlist;
-
-            try {
-                playlist = JSON.parse(resText);
-            } catch (e) {
-
-                return null;
-            }
-
-            if (playlist && playlist.length > 0) {
-                const item = playlist[0];
-                const sources = item.sources || [];
-                const tracks: any[] = Array.isArray(item.tracks) ? item.tracks : [];
-
-                if (sources.length > 0) {
-                    // Use first source as default (usually highest quality)
-                    const defaultSource = sources[0];
-                    const sourceFile = String(defaultSource.file ?? '');
-                    // Kotlin prepends mainUrl to the file path: mainUrl + it.file
-                    const m3u8Url = sourceFile.startsWith('http')
-                        ? sourceFile
-                        : `${playlistBaseUrl}${sourceFile}`;
-                    const proxyUrl = getHlsProxyUrl(m3u8Url, {
-                        referer: playlistReferer,
-                        cookie: streamCookies,
-                        ua: 'Mozilla/5.0 (Android) ExoPlayer' // Matches Kotlin extension stream UA
-                    });
-
-                    return {
-                        videoUrl: proxyUrl,
-                        subtitles: tracks
-                            .filter((t: any) => {
-                                const kind = String(t?.kind ?? '').toLowerCase();
-                                const file = String(t?.file ?? '').toLowerCase();
-                                if (kind.includes('thumb')) return false;
-                                return (
-                                    kind.includes('caption') ||
-                                    kind.includes('sub') ||
-                                    ((file.endsWith('.vtt') || file.endsWith('.srt')) && !kind)
-                                );
-                            })
-                            .map((t: any) => {
-                                const rawFile = String(t?.file ?? '');
-                                const rawLang = String(t?.srclang ?? t?.lang ?? t?.language ?? '').trim();
-                                const label = String(t?.label ?? t?.name ?? rawLang ?? 'Subtitles');
-                                const inferLang = (lbl: string) => {
-                                    const s = lbl.toLowerCase();
-                                    if (s.includes('english')) return 'en';
-                                    if (s.includes('hindi')) return 'hi';
-                                    if (s.includes('tamil')) return 'ta';
-                                    if (s.includes('telugu')) return 'te';
-                                    if (s.includes('malayalam')) return 'ml';
-                                    if (s.includes('kannada')) return 'kn';
-                                    if (s.includes('bengali')) return 'bn';
-                                    return '';
-                                };
-                                const language = rawLang || inferLang(label) || 'en';
-                                let subUrl = rawFile;
-                                if (subUrl.startsWith('//')) {
-                                    subUrl = `https:${subUrl}`;
-                                } else if (subUrl && !subUrl.startsWith('http')) {
-                                    subUrl = `${playlistBaseUrl}${subUrl.startsWith('/') ? subUrl : `/${subUrl}`}`;
-                                }
-                                return {
-                                    language,
-                                    label,
-                                    url: getHlsProxyUrl(subUrl, {
-                                        referer: playlistReferer,
-                                        cookie: streamCookies,
-                                        ua: HEADERS['User-Agent']
-                                    })
-                                };
-                            })
-                            .filter((s: any) => Boolean(s.url)),
-                        qualities: sources.map((s: any) => {
-                            const rawLabel = s.label || 'Auto';
-                            const quality = rawLabel === 'Auto' ? 'Full HD' : rawLabel === 'Mid HD' ? '720p' : rawLabel;
-                            return {
-                                quality,
-                                url: (() => {
-                                    const file = String(s?.file ?? '');
-                                    const abs = file.startsWith('http') ? file : `${playlistBaseUrl}${file}`;
-                                    return getHlsProxyUrl(abs, {
-                                        referer: playlistReferer,
-                                        cookie: streamCookies,
-                                        ua: HEADERS['User-Agent']
-                                    });
-                                })()
-                            };
-                        }),
-                        headers: {}
-                    };
-                }
-            }
-
-            return null;
         } catch (e) {
-
+            console.error('[MeowVerse] fetchStreamUrl failed', e);
             return null;
         }
     }

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { setProviderAction, getProviderNameAction } from '@/lib/api';
 
-const PROVIDERS = ['MeowTV', 'MeowToon'];
+const PROVIDERS = ['MeowTV', 'MeowVerse', 'MeowToon'];
 
 export default function ProviderSwitcher() {
     const [provider, setProvider] = useState<string>('MeowTV');
