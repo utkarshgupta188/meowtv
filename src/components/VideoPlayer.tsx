@@ -191,118 +191,6 @@ function CustomOverlayHUD({
     );
 }
 
-// Native-style audio track submenu (renamed to Language to avoid conflict with Vidstack Audio menu)
-function AudioMenuSection({
-    audioTracks,
-    nativeAudioTracks,
-    currentAudio,
-    currentNativeAudio,
-    isLoading,
-    changeExternalStream,
-    switchNativeAudio
-}: {
-    audioTracks: { languageId: number | string; name: string }[];
-    nativeAudioTracks: { id: number; label: string }[];
-    currentAudio: number | string | undefined;
-    currentNativeAudio: number;
-    isLoading: boolean;
-    changeExternalStream: (res?: number, audio?: number | string) => void;
-    switchNativeAudio: (index: number) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    
-    // Total tracks to show
-    const hasNative = nativeAudioTracks.length > 1;
-    const hasServer = audioTracks.length > 0;
-
-    if (!hasNative && !hasServer && audioTracks.length === 0) return null;
-
-    const activeLabel = hasNative 
-        ? nativeAudioTracks[currentNativeAudio]?.label || 'Default'
-        : audioTracks.find(t => String(t.languageId) === String(currentAudio))?.name ?? 'Default';
-
-    if (open) {
-        return (
-            <div className="vds-quality-submenu">
-                <button
-                    className="vds-quality-back-btn"
-                    onClick={() => setOpen(false)}
-                    aria-label="Back to settings"
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                    Language
-                </button>
-                <div className="vds-quality-options">
-                    {/* Native Tracks (Inside the file) */}
-                    {hasNative && (
-                        <>
-                            <div className="vds-quality-group-label">Embedded Tracks</div>
-                            {nativeAudioTracks.map((t) => (
-                                <button
-                                    key={`native-${t.id}`}
-                                    className={`vds-quality-option${currentNativeAudio === t.id ? ' vds-quality-option--active' : ''}`}
-                                    onClick={() => { switchNativeAudio(t.id); setOpen(false); }}
-                                >
-                                    <span className="vds-quality-check">
-                                        {currentNativeAudio === t.id && (
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="20 6 9 17 4 12" />
-                                            </svg>
-                                        )}
-                                    </span>
-                                    {t.label}
-                                </button>
-                            ))}
-                            <div style={{ height: 8 }} />
-                        </>
-                    )}
-
-                    {/* Server Tracks (Switching URL) */}
-                    {hasServer && (
-                        <>
-                            {hasNative && <div className="vds-quality-group-label">Server Versions</div>}
-                            {audioTracks.map((t) => (
-                                <button
-                                    key={`a-${t.languageId}`}
-                                    className={`vds-quality-option${String(currentAudio) === String(t.languageId) ? ' vds-quality-option--active' : ''}`}
-                                    onClick={() => { if (!isLoading) { changeExternalStream(undefined, t.languageId); setOpen(false); } }}
-                                    disabled={isLoading}
-                                >
-                                    <span className="vds-quality-check">
-                                        {String(currentAudio) === String(t.languageId) && (
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="20 6 9 17 4 12" />
-                                            </svg>
-                                        )}
-                                    </span>
-                                    {t.name}
-                                </button>
-                            ))}
-                        </>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <button
-            className="vds-quality-menu-btn"
-            onClick={() => setOpen(true)}
-        >
-            <span className="vds-quality-menu-label">Language</span>
-            <span className="vds-quality-menu-hint">
-                {activeLabel}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="9 18 15 12 9 6" />
-                </svg>
-            </span>
-        </button>
-    );
-}
-
 // Native-style quality submenu for the Vidstack settings panel
 function QualityMenuSection({
     qualities,
@@ -379,7 +267,7 @@ export default function VideoPlayer({
     poster,
     subtitles = [],
     qualities = [],
-    audioTracks: providerAudioTracks = [],
+    audioTracks = [],
     movieId,
     episodeId,
     languageId,
@@ -390,8 +278,6 @@ export default function VideoPlayer({
     const [resolvedUrl, setResolvedUrl] = useState(initialUrl);
     const [currentQuality, setCurrentQuality] = useState<number | null>(null);
     const [currentAudio, setCurrentAudio] = useState<number | string | undefined>(languageId);
-    const [nativeAudioTracks, setNativeAudioTracks] = useState<{ id: number; label: string }[]>([]);
-    const [currentNativeAudio, setCurrentNativeAudio] = useState<number>(0);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -446,54 +332,9 @@ export default function VideoPlayer({
         let cleanupBlobUrl: string | null = null;
         let isCancelled = false;
 
-        // VLC-style Deep Track Scanner
-        const video = playerRef.current?.el?.querySelector('video') as any;
-        if (video) {
-            const handleTracks = () => {
-                const nativeTracks: any[] = Array.from(video.audioTracks || []);
-                if (nativeTracks.length > 0) {
-                    setNativeAudioTracks(nativeTracks.map((t, i) => {
-                        let label = t.label || t.language;
-                        // Use VLC-observed mapping if labels are missing
-                        if (!label || label === 'und' || label === 'Default') {
-                            if (i === 0) label = 'Hindi';
-                            else if (i === 1) label = 'English';
-                            else label = `Track ${i + 1}`;
-                        }
-                        return { id: i, label };
-                    }));
-                    const activeIdx = nativeTracks.findIndex(t => t.enabled);
-                    if (activeIdx !== -1) setCurrentNativeAudio(activeIdx);
-                    console.log('[VideoPlayer] VLC Mode: Detected tracks', nativeTracks.length);
-                }
-                if (video.textTracks && video.textTracks.length > 0) {
-                    for (let i = 0; i < video.textTracks.length; i++) {
-                        video.textTracks[i].mode = i === 0 ? 'showing' : 'disabled';
-                    }
-                }
-            };
-
-            video.addEventListener('loadedmetadata', handleTracks);
-            video.addEventListener('canplay', handleTracks);
-            
-            // Force a re-scan after a short delay (VLC-style poke)
-            const poke = setInterval(() => {
-                if (video.audioTracks && video.audioTracks.length > 1) {
-                    handleTracks();
-                    clearInterval(poke);
-                }
-            }, 2000);
-
-            setTimeout(() => clearInterval(poke), 10000); // Stop after 10s
-        }
-
         const setupUrl = async () => {
-            const [baseUrl, hash] = url.split('#');
-            const trackMatch = hash?.match(/audio=(\d+)/);
-            const targetTrack = trackMatch ? parseInt(trackMatch[1]) : null;
-
-            if (baseUrl.startsWith('blob:') && baseUrl.length > 5) {
-                const actualUrl = baseUrl.slice('blob:'.length);
+            if (url.startsWith('blob:') && url.length > 5) {
+                const actualUrl = url.slice('blob:'.length);
                 try {
                     const response = await fetch(actualUrl);
                     const playlistText = await response.text();
@@ -507,22 +348,7 @@ export default function VideoPlayer({
                     setError('Failed to load playlist');
                 }
             } else {
-                setResolvedUrl(baseUrl);
-            }
-
-            // Sync native track if marker present
-            if (targetTrack !== null && video) {
-                const syncTrack = () => {
-                    if (video.audioTracks) {
-                        const actualIdx = targetTrack < video.audioTracks.length ? targetTrack : 0;
-                        for (let i = 0; i < video.audioTracks.length; i++) {
-                            video.audioTracks[i].enabled = (i === actualIdx);
-                        }
-                        setCurrentNativeAudio(actualIdx);
-                    }
-                };
-                if (video.readyState >= 1) syncTrack();
-                video.addEventListener('loadedmetadata', syncTrack, { once: true });
+                setResolvedUrl(url);
             }
         };
 
@@ -549,38 +375,20 @@ export default function VideoPlayer({
             }
 
             if (newUrl) {
-                const player = playerRef.current;
-                const currentTime = player?.currentTime || 0;
-                
-                // Append audio track index as a hash if provided
-                const audioHash = audio !== undefined ? `#audio=${audio}` : '';
-                setUrl(newUrl + audioHash);
+                const currentTime = playerRef.current?.currentTime || 0;
+                setUrl(newUrl);
 
-                // Wait for can-play event to restore time and play
-                if (player) {
-                    const onCanPlay = () => {
-                        player.currentTime = currentTime;
-                        player.play();
-                        player.el?.removeEventListener('can-play', onCanPlay);
-                    };
-                    player.el?.addEventListener('can-play', onCanPlay);
-                }
+                setTimeout(() => {
+                    if (playerRef.current) {
+                        playerRef.current.currentTime = currentTime;
+                        playerRef.current.play();
+                    }
+                }, 500);
             }
         } catch (e) {
             console.error("Failed to switch stream", e);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const switchNativeAudio = (index: number) => {
-        const video = playerRef.current?.el?.querySelector('video') as any;
-        if (video && video.audioTracks) {
-            for (let i = 0; i < video.audioTracks.length; i++) {
-                video.audioTracks[i].enabled = (i === index);
-            }
-            setCurrentNativeAudio(index);
-            console.log('[VideoPlayer] Switched native audio track to:', index);
         }
     };
 
@@ -656,7 +464,7 @@ export default function VideoPlayer({
         return 'video/mp4';
     };
 
-    const externalAudioTracks = providerAudioTracks.map(t => ({ id: t.languageId, name: t.name }));
+    const externalAudioTracks = audioTracks.map(t => ({ id: t.languageId, name: t.name }));
     const externalQualityOptions = sortedQualities.map((q, idx) => ({ id: idx, label: q.quality }));
 
     return (
@@ -698,23 +506,12 @@ export default function VideoPlayer({
                     icons={defaultLayoutIcons}
                     slots={{
                         settingsMenuItemsEnd: (
-                            <>
-                                <AudioMenuSection
-                                    audioTracks={providerAudioTracks}
-                                    nativeAudioTracks={nativeAudioTracks}
-                                    currentAudio={currentAudio}
-                                    currentNativeAudio={currentNativeAudio}
-                                    isLoading={isLoading}
-                                    changeExternalStream={changeExternalStream}
-                                    switchNativeAudio={switchNativeAudio}
-                                />
-                                <QualityMenuSection
-                                    qualities={externalQualityOptions}
-                                    currentQuality={currentQuality}
-                                    isLoading={isLoading}
-                                    changeExternalStream={changeExternalStream}
-                                />
-                            </>
+                            <QualityMenuSection
+                                qualities={externalQualityOptions}
+                                currentQuality={currentQuality}
+                                isLoading={isLoading}
+                                changeExternalStream={changeExternalStream}
+                            />
                         )
                     }}
                 />
