@@ -44,7 +44,7 @@ export default async function SearchPage({
                                 padding: '0 40px', 
                                 height: '54px', 
                                 fontSize: '1rem',
-                                boxShadow: '0 15px 35px rgba(236, 19, 164, 0.3)'
+                                boxShadow: '0 15px 35px rgba(239, 68, 68, 0.3)'
                             }}
                         >
                             <span className="material-symbols-outlined">auto_awesome</span>

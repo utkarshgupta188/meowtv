@@ -2,6 +2,7 @@ import { fetchDetails, fetchStreamUrl } from '@/lib/api';
 import WatchClient from '@/components/WatchClient';
 import SeasonSwitcher from '@/components/SeasonSwitcher';
 import RecommendationsSection from '@/components/RecommendationsSection';
+import BackButton from '@/components/BackButton';
 import { cookies } from 'next/headers';
 
 export default async function WatchPage({
@@ -89,7 +90,6 @@ export default async function WatchPage({
             const movieIdToUse = currentEpisode.sourceMovieId || details.id;
             videoData = await fetchStreamUrl(movieIdToUse, currentEpisode.id, languageId);
         } catch (e) {
-            console.error(e);
         }
     }
 
@@ -120,7 +120,10 @@ export default async function WatchPage({
     } : null;
 
     return (
-        <div className="container page-pad">
+        <div className="container" style={{ paddingTop: '20px' }}>
+            <div style={{ marginBottom: '20px', display: 'flex' }}>
+                <BackButton />
+            </div>
             {/* Pass everything to Client Wrapper */}
             <div className="watch-player-wrapper" style={{ minHeight: '60vh' }}>
                 {currentEpisode ? (

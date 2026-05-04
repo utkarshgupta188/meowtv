@@ -132,9 +132,9 @@ export async function fetchDetails(id: string, includeEpisodes: boolean = true):
                 return mapped;
             }
         } catch (e) {
-            console.error('[api] xon direct fetchDetails failed', e);
+
         }
-        console.warn('[api] xon direct fetchDetails returned null', id);
+
         // fall through to provider-based resolution
     }
 
@@ -152,7 +152,7 @@ export async function fetchDetails(id: string, includeEpisodes: boolean = true):
             return details;
         }
     } catch (e) {
-        console.error('[api] fetchDetails failed', e);
+
     }
 
     // Don't return cached MeowVerse details during debugging
@@ -197,9 +197,9 @@ export async function fetchStreamUrl(
                 return mapped;
             }
         } catch (e) {
-            console.error('[api] xon direct fetchStreamUrl failed', e);
+
         }
-        console.warn('[api] xon direct fetchStreamUrl returned null', { movieId, episodeId });
+
         // fall through to provider-based resolution
     }
 
@@ -218,7 +218,7 @@ export async function fetchStreamUrl(
             return videoData;
         }
     } catch (e) {
-        console.error('[api] fetchStreamUrl failed', e);
+
     }
 
     // Don't return cached MeowVerse streams during debugging

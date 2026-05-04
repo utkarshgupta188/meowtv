@@ -118,7 +118,7 @@ export const MeowToonProvider: Provider = {
                 }));
             })
             .catch((e) => {
-                console.error('[MeowToon] Xon fetchHome failed:', e);
+
                 return [] as HomePageRow[];
             });
 
@@ -150,7 +150,7 @@ export const MeowToonProvider: Provider = {
 
             } catch (err) {
                 if (!isAbortError(err)) {
-                    console.warn('[MeowToon] Kartoons fetchHome failed:', err);
+
                 }
                 return [] as HomePageRow[];
             }
@@ -182,7 +182,7 @@ export const MeowToonProvider: Provider = {
             });
             results.push(...karto);
         } catch (e) {
-            if (!isAbortError(e)) console.error('[MeowToon] search failed:', e);
+
         }
 
         try {
@@ -199,7 +199,7 @@ export const MeowToonProvider: Provider = {
                 })
             );
         } catch (e) {
-            console.error('[MeowToon] xon search failed:', e);
+
         }
 
         // de-dupe by id
@@ -239,7 +239,7 @@ export const MeowToonProvider: Provider = {
                     tags: undefined
                 };
             } catch (e) {
-                console.error('[MeowToon] xon fetchDetails failed:', e);
+
                 return null;
             }
         }
@@ -302,7 +302,7 @@ export const MeowToonProvider: Provider = {
                                 .filter(Boolean) as Episode[];
                         } catch (err) {
                             if (!isAbortError(err)) {
-                                console.error('[MeowToon] Failed to fetch season episodes:', sUrl, err);
+
                             }
                             return [] as Episode[];
                         }
@@ -363,7 +363,7 @@ export const MeowToonProvider: Provider = {
             };
         } catch (e) {
             if (isAbortError(e)) return null;
-            console.error('[MeowToon] fetchDetails failed:', e);
+
             return null;
         }
     },
@@ -381,7 +381,7 @@ export const MeowToonProvider: Provider = {
                     headers: {}
                 };
             } catch (e) {
-                console.error('[MeowToon] xon fetchStreamUrl failed:', e);
+
                 return null;
             }
         }
@@ -393,7 +393,7 @@ export const MeowToonProvider: Provider = {
             } else if (episodeId.startsWith('mov-')) {
                 url = `${MAIN_URL}/api/movies/${episodeId.slice('mov-'.length)}/links`;
             } else {
-                console.warn('[MeowToon] Unknown episodeId format:', episodeId);
+
                 return null;
             }
 
@@ -408,11 +408,11 @@ export const MeowToonProvider: Provider = {
                         json = await fetchJson<any>(url, 8_000, { cache: 'no-store' });
                     } catch (retryErr) {
                         if (isAbortError(retryErr)) return null;
-                        console.error('[MeowToon] fetchStreamUrl retry failed:', retryErr);
+
                         return null;
                     }
                 } else {
-                    console.error('[MeowToon] fetchStreamUrl failed:', e);
+
                     return null;
                 }
             }
@@ -438,7 +438,7 @@ export const MeowToonProvider: Provider = {
             }
             return null;
         } catch (e) {
-            if (!isAbortError(e)) console.error('[MeowToon] fetchStreamUrl failed:', e);
+
             return null;
         }
     }

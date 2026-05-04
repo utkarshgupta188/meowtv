@@ -242,8 +242,8 @@ async function authenticateAndGetSettings(): Promise<void> {
 		if (typeof base === 'string' && base.length) mainUrl = base.replace(/\/+$/, '');
 	} catch (e) {
 		// Fall back to hardcoded values.
-		console.warn('[xon] authenticate/settings failed; using defaults:', String(e));
-		console.error('Xon Auth Error Details:', e);
+
+
 	}
 }
 

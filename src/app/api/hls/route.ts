@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         const response = await fetch(url, { headers, signal: request.signal });
 
         if (!response.ok) {
-            console.error(`Proxy fetch failed: ${response.status} for ${url}`);
+
             return NextResponse.json({ error: 'Failed to fetch' }, { status: response.status });
         }
 
@@ -64,13 +64,6 @@ export async function GET(request: NextRequest) {
         if (decryptParam && looksLikeTextual) {
             try {
                 const sampleText = await response.clone().text();
-                console.warn('[HLS Proxy] Textual upstream response', {
-                    url,
-                    status: response.status,
-                    contentType,
-                    contentLength,
-                    sample: sampleText.slice(0, 300)
-                });
             } catch {
                 // ignore
             }
@@ -101,8 +94,6 @@ export async function GET(request: NextRequest) {
         if (playlistText !== null) {
             // DEBUG: Check format
             if (!looksLikePlaylistText(playlistText)) {
-                console.error('[HLS Proxy Debug] Invalid Playlist Content from:', url);
-                console.error('[HLS Proxy Debug] Body Preview:', playlistText.slice(0, 500));
             }
             let text = playlistText;
 
@@ -120,10 +111,6 @@ export async function GET(request: NextRequest) {
                 if (u.includes('in=unknown') || u.includes('in=null')) {
                     // Try to finding the 'in' param from the master playlist URL (the 'url' param of this request)
                     const masterInMatch = url?.match(/[?&]in=([^&]+)/);
-                    // console.log('[HLS Repair] Fixing URL:', u);
-                    // console.log('[HLS Repair] Master URL:', url);
-                    // console.log('[HLS Repair] Match:', masterInMatch ? masterInMatch[1] : 'null');
-
                     if (masterInMatch) {
                         return u.replace(/in=[^&]+/, `in=${masterInMatch[1]}`);
                     }
@@ -265,7 +252,7 @@ export async function GET(request: NextRequest) {
             headers: outHeaders
         });
     } catch (error) {
-        console.error('HLS Proxy error:', error);
+
         return NextResponse.json({ error: 'Proxy failed' }, { status: 500 });
     }
 }

@@ -25,7 +25,7 @@ export default async function RandomPage() {
             targetUrl = `/watch/${encodeURIComponent(randomId)}`;
         }
     } catch (e) {
-        console.error("Failed to pick random show:", e);
+
     }
 
     // Now redirect outside the try-catch so it won't be swallowed

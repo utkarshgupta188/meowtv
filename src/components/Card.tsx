@@ -63,7 +63,7 @@ export default function Card({ id, title, image }: CardProps) {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            background: 'linear-gradient(135deg, #1a1d2e 0%, #252840 100%)',
+                            background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
                             color: '#4a5568',
                             fontSize: '0.7rem',
                             textAlign: 'center',

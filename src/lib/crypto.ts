@@ -38,7 +38,7 @@ export function decryptData(encryptedB64: string, apiKeyB64: string): string | n
 
     return decrypted.toString('utf8');
   } catch (error) {
-    console.error('Decryption failed:', error);
+
     return null;
   }
 }

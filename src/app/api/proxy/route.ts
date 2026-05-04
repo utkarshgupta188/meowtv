@@ -73,7 +73,7 @@ async function handleRequest(request: NextRequest) {
             headers: responseHeaders
         });
     } catch (error) {
-        console.error('Proxy error:', error);
+
         return NextResponse.json({ error: 'Proxy failed' }, { status: 500 });
     }
 }

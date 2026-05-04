@@ -38,7 +38,7 @@ function des3Decrypt(encryptedBase64: string): string {
         decrypted += decipher.final('utf8');
         return decrypted;
     } catch (e) {
-        console.error('[MeowVerse] DES3 decryption failed', e);
+
         return '';
     }
 }
@@ -74,7 +74,7 @@ function aesDecrypt(encryptedBase64: string): string {
         }
         return resultText.trim();
     } catch (e) {
-        console.error('[MeowVerse] AES decryption failed', e);
+
         return '';
     }
 }
@@ -148,7 +148,7 @@ async function ensureToken() {
         cachedToken = data.result?.user_info?.token || '';
         tokenExpiresAt = Date.now() + 3600 * 1000;
     } catch (e) {
-        console.error('[MeowVerse] ensureToken failed', e);
+
     }
 
     return { secret: cachedSecret, token: cachedToken || '' };
@@ -198,7 +198,7 @@ async function searchRecommend(page: number): Promise<ContentItem[]> {
             type: item.type_pid === 2 ? 'series' : 'movie'
         }));
     } catch (e) {
-        console.error('[MeowVerse] searchRecommend failed', e);
+
         return [];
     }
 }
@@ -231,7 +231,7 @@ async function topicVodList(topicId: string, page: number): Promise<ContentItem[
             type: item.type_pid === 2 ? 'series' : 'movie'
         }));
     } catch (e) {
-        console.error(`[MeowVerse] topicVodList(${topicId}) failed`, e);
+
         return [];
     }
 }
@@ -288,7 +288,7 @@ export const MeowVerseProvider: Provider = {
                 type: 'movie'
             }));
         } catch (e) {
-            console.error('[MeowVerse] search failed', e);
+
             return [];
         }
     },
@@ -380,13 +380,13 @@ export const MeowVerseProvider: Provider = {
                 seasons: seasons.length > 0 ? seasons : [{ id: id, number: 1, name: 'Season 1' }]
             };
         } catch (e) {
-            console.error('[MeowVerse] fetchDetails failed', e);
+
             return null;
         }
     },
 
     async fetchStreamUrl(movieId: string, episodeId: string, languageId?: number | string): Promise<VideoResponse | null> {
-        console.log('[MeowVerse] fetchStreamUrl', { movieId, episodeId, languageId });
+
         try {
             const { secret, token } = await ensureToken();
             const curTime = Date.now().toString();
@@ -447,7 +447,7 @@ export const MeowVerseProvider: Provider = {
                 headers: { 'User-Agent': 'okhttp/4.11.0' }
             };
         } catch (e) {
-            console.error('[MeowVerse] fetchStreamUrl failed', e);
+
             return null;
         }
     }

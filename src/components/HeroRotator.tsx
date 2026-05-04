@@ -103,7 +103,7 @@ export default function HeroRotator({
         <div>
           <div className="hero-meta">
             <span className="hero-score-wrapper">
-              <span className="material-symbols-outlined text-sm text-yellow-500 fill-1">star</span>
+              <span className="material-symbols-outlined text-sm" style={{ color: 'var(--primary)', fontVariationSettings: "'FILL' 1" }}>star</span>
               {current.score ? `${current.score} Rating` : '9.8 Rating'}
               {current.year ? ` • ${current.year}` : null}
             </span>

@@ -65,7 +65,7 @@ async function HeroSectionLoader({ rowPromises }: { rowPromises: Promise<HomePag
     // we use the first one since it's typically the primary content (like Kartoons)
     rows = await rowPromises[0];
   } catch (err) {
-    console.warn("Failed to load first row promise for hero section", err);
+
   }
 
   const featuredId = rows?.[0]?.contents?.[0]?.id;
@@ -158,7 +158,7 @@ async function AsyncRowsLoader({ promise }: { promise: Promise<HomePageRow[]> })
   try {
     rows = await promise;
   } catch (err) {
-    console.warn("Failed to load row promise", err);
+
     return null;
   }
 

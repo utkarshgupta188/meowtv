@@ -40,7 +40,7 @@ export function decryptStream(value: string | null): string | null {
     const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     return decrypted.toString('utf-8');
   } catch (e) {
-    console.error('Decryption failed:', e);
+
     return null;
   }
 }

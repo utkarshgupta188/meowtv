@@ -8,7 +8,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
-  themeColor: '#120810',
+  themeColor: '#000000',
 };
 
 export const metadata: Metadata = {
@@ -30,13 +30,13 @@ export default function RootLayout({
       <body className="app-body">
         <NextTopLoader color="#ff0000" showSpinner={false} shadow="0 0 10px #ff0000,0 0 5px #ff0000" />
         {/* Background Glow Accents */}
-        <div style={{ position: 'fixed', top: '-10%', left: '-10%', width: '40%', height: '40%', backgroundColor: 'rgba(236,19,164,0.1)', borderRadius: '9999px', filter: 'blur(120px)', pointerEvents: 'none' }}></div>
-        <div style={{ position: 'fixed', bottom: '-10%', right: '-10%', width: '40%', height: '40%', backgroundColor: 'rgba(37,99,235,0.1)', borderRadius: '9999px', filter: 'blur(120px)', pointerEvents: 'none' }}></div>
+        <div style={{ position: 'fixed', top: '-10%', left: '-10%', width: '40%', height: '40%', backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: '9999px', filter: 'blur(120px)', pointerEvents: 'none' }}></div>
+        <div style={{ position: 'fixed', bottom: '-10%', right: '-10%', width: '40%', height: '40%', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: '9999px', filter: 'blur(120px)', pointerEvents: 'none' }}></div>
 
         <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh', position: 'relative' }}>
           <SmartNavbar />
 
-          <main className="page-shell" style={{ flex: 1, paddingTop: '80px' }}>
+          <main className="page-shell" style={{ flex: 1, paddingTop: 'var(--nav-height, 80px)' }}>
             {children}
           </main>
 
@@ -44,14 +44,14 @@ export default function RootLayout({
             <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
               <div className="logo" style={{ fontSize: '1rem' }}>
                 <span className="material-symbols-outlined logo-mark" style={{ fontSize: '20px' }}>movie_filter</span>
-                <span className="logo-type" style={{ fontSize: '1rem' }}>Meow<span>TV</span></span>
+                <span className="logo-type" style={{ fontSize: '1rem' }}>MEOW<span>TV</span></span>
               </div>
               <div style={{ display: 'flex', gap: '20px', alignItems: 'center', fontSize: '0.8rem', color: '#64748b' }}>
                 <Link href="/dmca" style={{ color: '#64748b' }}>DMCA</Link>
                 <a href="https://github.com/utkarshgupta188" target="_blank" rel="noopener noreferrer" style={{ color: '#64748b' }}>GitHub</a>
               </div>
               <p style={{ color: '#475569', fontSize: '0.75rem', margin: 0 }}>
-                © 2026 MeowTV · Made with 💚 by <a href="https://github.com/utkarshgupta188" target="_blank" rel="noopener noreferrer" style={{ color: '#ec13a4' }}>Utkarsh Gupta</a> · Does not store files on server
+                © 2026 MeowTV · Made with ❤️ by <a href="https://github.com/utkarshgupta188" target="_blank" rel="noopener noreferrer" style={{ color: '#ef4444' }}>Utkarsh Gupta</a> · Does not store files on server
               </p>
             </div>
           </footer>

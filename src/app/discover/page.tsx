@@ -24,26 +24,20 @@ export default async function DiscoverPage() {
     const items = Array.from(allItemsMap.values());
 
     return (
-        <div className="container page-pad animate-fade-in" style={{ paddingTop: '40px' }}>
-            <div style={{ marginBottom: '32px' }}>
-                <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>
-                    Discover
-                </h1>
-                <p style={{ color: '#94a3b8', fontSize: '1rem' }}>
+        <div className="container page-pad animate-fade-in">
+            <header className="page-header">
+                <h1 className="page-title">Discover</h1>
+                <p className="page-subtitle">
                     Explore the full cosmos of our curated content collection.
                 </p>
-            </div>
+            </header>
 
             {items.length === 0 ? (
                 <div className="empty-state">
                     <h2>No content available to discover.</h2>
                 </div>
             ) : (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                    gap: '24px'
-                }}>
+                <div className="grid">
                     {items.map((item, idx) => (
                         <div key={`${item.id}-${idx}`} style={{ animationDelay: `${(idx % 10) * 50}ms` }} className="animate-fade-in">
                             <Card

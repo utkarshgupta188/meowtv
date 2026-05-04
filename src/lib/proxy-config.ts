@@ -2,7 +2,7 @@
 export const PROXY_WORKER_URL = process.env.NEXT_PUBLIC_CF_WORKER_URL || '';
 
 export function getHlsProxyUrl(targetUrl: string, params: Record<string, string> = {}): string {
-    console.log('[Antigravity] Proxy Config Loaded - Worker Disabled:', !PROXY_WORKER_URL);
+
     const searchParams = new URLSearchParams();
     searchParams.set('url', targetUrl);
     for (const [key, value] of Object.entries(params)) {

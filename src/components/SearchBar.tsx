@@ -40,7 +40,7 @@ export default function SearchBar() {
                 ref={inputRef}
                 type="text"
                 className="glass search-input"
-                placeholder="Search titles... (Press '/' to focus)"
+                placeholder="Search MeowTV..."
                 aria-label="Search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -56,6 +56,14 @@ export default function SearchBar() {
                     fontSize: '1rem',
                     transition: 'all 0.3s ease',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }}
+                onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                    e.currentTarget.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.25)';
+                }}
+                onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
                 }}
             />
         </form>

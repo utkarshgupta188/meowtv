@@ -151,10 +151,6 @@ function CustomOverlayHUD({
 }) {
     const isControlsVisible = useMediaState('controlsVisible', playerRef);
 
-    if (!showOpenDownload) {
-        return null;
-    }
-
     return (
         <div
             className="player-hud"
@@ -176,15 +172,17 @@ function CustomOverlayHUD({
                 }}
             >
                 <div className="player-hud-panel">
-                    <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="player-action"
-                        title="If video fails (e.g. MKV), click to download or open directly"
-                    >
-                        Open / Download
-                    </a>
+                    {showOpenDownload && (
+                        <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="player-action"
+                            title="If video fails (e.g. MKV), click to download or open directly"
+                        >
+                            Open / Download
+                        </a>
+                    )}
                 </div>
             </div>
         </div>
@@ -344,7 +342,7 @@ export default function VideoPlayer({
                     cleanupBlobUrl = blobUrl;
                     setResolvedUrl(blobUrl);
                 } catch (err) {
-                    console.error('[VideoPlayer] Failed to fetch playlist:', err);
+
                     setError('Failed to load playlist');
                 }
             } else {
@@ -386,7 +384,7 @@ export default function VideoPlayer({
                 }, 500);
             }
         } catch (e) {
-            console.error("Failed to switch stream", e);
+
         } finally {
             setIsLoading(false);
         }
