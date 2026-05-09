@@ -11,7 +11,7 @@ async function decodeKartoonsLinkToM3u8Url(encoded: string): Promise<string | nu
 
   // Single-step local stream endpoint: returns the final HLS playlist text.
   // This minimizes extra client->server hops.
-  return `https://kartoondecrypt.onrender.com/kartoons?data=${encodeURIComponent(clean)}`;
+  return `https://kartoondecrypt.vercel.app/kartoons?data=${encodeURIComponent(clean)}`;
 }
 
 function normalizeId(id: any): string | null {

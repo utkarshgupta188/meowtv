@@ -4,7 +4,7 @@ import { getSimpleProxyUrl } from '../proxy-config';
 
 // Built from the Android provider in `Kartoons/`.
 const MAIN_URL = 'https://api.kartoons.me';
-const DECRYPT_BASE = 'https://kartoondecrypt.onrender.com';
+const DECRYPT_BASE = 'https://kartoondecrypt.vercel.app';
 
 type KartoonsListResponse<T> = { data?: T };
 
