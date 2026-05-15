@@ -14,7 +14,7 @@
     "@vidstack/react": "^1.12.13",
     "cheerio": "^1.1.2",
     "hls.js": "^1.6.15",
-    "next": "^16.2.2",
+    "next": "^16.2.6",
     "nextjs-toploader": "^3.9.17",
     "plyr": "^3.8.3",
     "react": "19.2.3",
