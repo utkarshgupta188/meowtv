@@ -5,7 +5,9 @@ const ALLOWED_PROVIDERS = ['MeowTV', 'MeowVerse', 'MeowToon'];
 
 export function middleware(request: NextRequest) {
     const userAgent = request.headers.get('user-agent') || '';
-    if (userAgent.toLowerCase().includes('fastcron')) {
+    const BLOCKED_KEYWORDS = ['bot', 'fastcron'];
+
+    if (BLOCKED_KEYWORDS.some(keyword => userAgent.toLowerCase().includes(keyword))) {
         return new NextResponse(
             JSON.stringify({ error: 'Forbidden' }),
             { status: 403, headers: { 'content-type': 'application/json' } }
