@@ -1,3 +1,7 @@
+#                              NO LONGER MAINTAINED
+## USE [MEOWLY](https://github.com/utkarshgupta188/meowly)
+
+
 # MeowTV 🎬🐱
 
 **A modern, mobile-first streaming platform for Movies, TV Shows, Anime & Cartoons**
